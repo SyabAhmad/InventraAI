@@ -64,7 +64,7 @@ calls and explains results using real data.
 ### 1. Clone and enter
 
 ```bash
-git clone https://github.com/SyabAhmad/InventraAI.git
+git clone https://github.com/<your-username>/InventraAI.git
 cd InventraAI
 git checkout phase-1-foundation
 ```
