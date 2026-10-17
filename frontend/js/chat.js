@@ -1,6 +1,8 @@
 /* InventraAI — Chat view (ChatGPT-style) with persistent conversation history.
-   Local intent engine over real dashboard data. The FastAPI backend will swap
-   `answer()` for the LLM agent; the UI stays the same. */
+   Live mode: questions go to the FastAPI backend and run through the LangGraph
+   agent (real tool-calling over live SQLite data).
+   Snapshot mode (backend offline): answers come from the local intent engine
+   so the static dashboard stays usable. No fabricated data either way. */
 (function () {
   'use strict';
 
@@ -9,6 +11,21 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
   function money(n) { return '$' + Number(n).toFixed(2); }
+
+  /* Safe markdown: HTML is escaped BEFORE markdown parsing, so model output
+     can never inject tags - only markdown constructs render. */
+  function mdToHtml(text) {
+    var raw = String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    if (window.marked && typeof window.marked.parse === 'function') {
+      try {
+        return window.marked.parse(raw, { breaks: true, gfm: true });
+      } catch (e) { /* fall through to plain rendering */ }
+    }
+    return raw.replace(/\n/g, '<br>');
+  }
 
   var D = null;
   var busy = false;
@@ -174,7 +191,8 @@
       : '';
   }
 
-  function addMessage(role, text) {
+  function addMessage(role, text, meta) {
+    meta = meta || {};
     var empty = $('chat-empty');
     if (empty) empty.remove();
     var thread = $('chat-thread');
@@ -184,8 +202,19 @@
     avatar.className = 'chat-avatar';
     avatar.textContent = role === 'user' ? 'You' : 'AI';
     var bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
-    bubble.innerHTML = '<span class="who">' + (role === 'user' ? 'You' : 'Agent') + '</span>' + esc(text);
+    bubble.className = 'chat-bubble' + (meta.error ? ' error' : '');
+    var html = '<span class="who">' + (role === 'user' ? 'You' : 'Agent') + '</span>';
+    if (role === 'agent') {
+      html += '<div class="md">' + mdToHtml(text) + '</div>';
+    } else {
+      html += esc(text);
+    }
+    if (meta.tools && meta.tools.length) {
+      html += '<div class="chat-tools"><span class="chat-tools-label">used</span>' + meta.tools.map(function (t) {
+        return '<span class="chat-tool">' + esc(t) + '</span>';
+      }).join('') + '</div>';
+    }
+    bubble.innerHTML = html;
     row.appendChild(avatar);
     row.appendChild(bubble);
     thread.appendChild(row);
@@ -278,11 +307,30 @@
     for (var i = 0; i < convs.length; i++) if (convs[i].id === id) conv = convs[i];
     clearThread(false);
     if (conv && conv.messages.length) {
-      conv.messages.forEach(function (m) { addMessage(m.role, m.text); });
+      conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools }); });
     } else {
       clearThread(true);
     }
     renderConvList();
+  }
+
+  /* ---------- agent call (live mode) ---------- */
+  function callAgent(q) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 120000);
+    return fetch(window.appApiBase() + '/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q }),
+      signal: controller.signal
+    }).finally(function () { clearTimeout(timer); }).then(function (r) {
+      if (!r.ok) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          throw new Error(j.detail || ('HTTP ' + r.status));
+        });
+      }
+      return r.json();
+    });
   }
 
   /* ---------- send flow ---------- */
@@ -304,6 +352,26 @@
 
     busy = true;
     addTyping();
+
+    if (window.APP_MODE === 'live') {
+      callAgent(q).then(function (res) {
+        removeTyping();
+        var a = res.answer || '(empty response from the model)';
+        addMessage('agent', a, { tools: res.tools });
+        conv = getActiveConv();
+        conv.messages.push({ role: 'agent', text: a, tools: res.tools || [], ts: Date.now() });
+        persist(conv);
+        renderConvList();
+      }).catch(function (err) {
+        removeTyping();
+        addMessage('agent', 'Agent error: ' + err.message + '\n\nNo fallback is used — check the server and the LLM configuration.', { error: true });
+      }).finally(function () {
+        busy = false;
+      });
+      return;
+    }
+
+    // snapshot mode — local intent engine over the bundled data
     setTimeout(function () {
       removeTyping();
       var a = answer(q);
@@ -327,6 +395,7 @@
     'Which products are low in stock?',
     'Which products are out of stock?',
     'What are the top sellers?',
+    'What should I reorder first?',
     'Forecast demand for SKU-0001',
     'How many units of SKU-0002 are available?'
   ];
@@ -377,7 +446,9 @@
     var conv = getActiveConv();
     if (conv.messages.length) {
       clearThread(false);
-      conv.messages.forEach(function (m) { addMessage(m.role, m.text); });
+      conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools }); });
+    } else if (window.APP_MODE !== 'live') {
+      addMessage('agent', 'Backend offline — running in snapshot mode.\nStart the API (uvicorn src.api.main:app) to chat with the real LangGraph agent over live data.');
     }
     renderConvList();
 
@@ -392,7 +463,7 @@
       b.addEventListener('click', function () { send(b.getAttribute('data-q')); });
     });
 
-    if (!D) addMessage('agent', 'Data not loaded. Run `python scripts/generate_products_html.py` first.');
+    if (!D && window.APP_MODE !== 'live') addMessage('agent', 'Data not loaded. Run `python scripts/init_db.py` then `python scripts/generate_products_html.py`, or start the API.');
     input.focus();
   }
 
