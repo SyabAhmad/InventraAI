@@ -1,6 +1,6 @@
 /* InventraAI — Chat view (ChatGPT-style) with persistent conversation history.
-   Local intent engine over real dashboard data. Phase 4 will swap `answer()`
-   for the LLM agent; the UI stays the same. */
+   Local intent engine over real dashboard data. The FastAPI backend will swap
+   `answer()` for the LLM agent; the UI stays the same. */
 (function () {
   'use strict';
 
