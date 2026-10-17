@@ -1,0 +1,22 @@
+# Core
+python-dotenv==1.0.0
+pydantic==2.9.0
+
+# Data / DB
+pandas==2.3.3
+numpy==2.0.2
+scikit-learn==1.6.1
+
+# API + serving
+fastapi==0.115.0
+uvicorn==0.30.0
+httpx==0.28.1
+
+# Agentic (LangGraph + LangChain, OpenAI-compatible client for Ollama Cloud)
+langgraph==0.2.39
+langchain==0.3.7
+langchain-core==0.3.15
+langchain-openai==0.2.9
+
+# Testing
+pytest==8.4.2

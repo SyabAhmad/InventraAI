@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+# Environment / secrets
+.env
+*.key
+
+# Database / data
+data/*.db
+data/*.sqlite
+*.db-journal
+
+# Logs / results
+*.log
+benchmark_results/
+results/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
