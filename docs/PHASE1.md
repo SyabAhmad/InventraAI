@@ -210,4 +210,27 @@ See `PHASES.md` for the full plan.
 
 ---
 
+## 8. In one sentence
+
+Phase 1 gives us a **working database full of realistic sample data** and a
+**configurable app** that we can run and test — the solid ground every other
+phase builds on.
+
+## 9. Glossary (plain English)
+
+- **SQLite** — a small database stored in a single file on your computer. No
+  server needed.
+- **Schema** — the blueprint of the database: which tables exist and what
+  columns they have.
+- **Seed data** — fake but realistic data we insert so the app has something
+  to show and test with.
+- **Idempotent** — running the same command twice gives the same result (no
+  duplicates).
+- **`.env` file** — a text file holding settings (like passwords and model
+  names) that the app reads at startup. Kept out of git for safety.
+- **Branch** — a separate line of work in git. Each phase has its own branch.
+- **Smoke test** — a quick test that checks the basics work.
+
+---
+
 *Phase 1 complete. Awaiting go-ahead for Phase 2.*
