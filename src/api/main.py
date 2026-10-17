@@ -39,6 +39,21 @@ app.add_middleware(
 app.include_router(dashboard.router)
 app.include_router(chat.router)
 
+
+@app.middleware("http")
+async def no_cache_frontend(request, call_next):
+    """Always serve fresh UI assets so a normal reload picks up new JS.
+
+    Without this a browser can keep running a cached chat.js (and thus an
+    older feature set) even after the server has new code.
+    """
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith(("/js/", "/css/", "/vendor/", "/ms/")):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # Static dashboard (mounted last so /api routes take precedence).
 if FRONTEND_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

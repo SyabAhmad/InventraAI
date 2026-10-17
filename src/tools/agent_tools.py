@@ -27,6 +27,7 @@ from src.tools.reorder_tools import (
 )
 from src.tools.sales_tools import (
     tool_daily_sales,
+    tool_product_daily_sales,
     tool_revenue_by_category,
     tool_sales_summary,
     tool_slow_movers,
@@ -139,6 +140,14 @@ def daily_sales_data(days: int = 30) -> list:
 
 
 @tool
+def product_sales_data(product_name_or_sku: str, days: int = 30) -> dict:
+    """Daily units sold for ONE product (name or SKU) over the last N days with data.
+    Chart-ready: use days[].date as labels and days[].units as values. Use this
+    whenever the question is about a specific product's sales trend."""
+    return tool_product_daily_sales(product_name_or_sku, days=days)
+
+
+@tool
 def make_bar_chart(title: str, labels: list, values: list, value_label: str = "Value") -> str:
     """Render a BAR chart in the chat. Pass labels (names/dates/categories) and
     values copied EXACTLY from a data tool result. Returns a chart specification."""
@@ -176,6 +185,7 @@ AGENT_TOOLS = [
     recommend_all_reorders,
     reorder_summary,
     daily_sales_data,
+    product_sales_data,
     make_bar_chart,
     make_line_chart,
     make_pie_chart,

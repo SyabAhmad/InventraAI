@@ -30,17 +30,18 @@ def _get_agent() -> Any:
     return _agent
 
 
-def run_question(question: str) -> dict:
+def run_question(question: str, history: list[dict] | None = None) -> dict:
     """Run one question through the real agent (tests monkeypatch this)."""
     with _agent_lock:
-        return ask_agent(_get_agent(), question)
+        return ask_agent(_get_agent(), question, history=history)
 
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(payload: ChatRequest) -> ChatResponse:
     started = time.perf_counter()
+    history = [{"role": turn.role, "text": turn.text} for turn in payload.history]
     try:
-        result = run_question(payload.message)
+        result = run_question(payload.message, history)
     except Exception as exc:  # network/provider/agent errors -> honest 502
         raise HTTPException(status_code=502, detail=f"Agent error: {exc}") from exc
 

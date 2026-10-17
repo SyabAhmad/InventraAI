@@ -4,7 +4,9 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.agent.graph import SYSTEM_PROMPT
+from langchain_core.messages import AIMessage, HumanMessage
+
+from src.agent.graph import SYSTEM_PROMPT, ask_agent
 from src.tools.agent_tools import AGENT_TOOLS
 
 
@@ -42,3 +44,39 @@ def test_tools_return_real_data():
 def test_system_prompt_grounded_rules():
     assert "Never invent" in SYSTEM_PROMPT
     assert "tool" in SYSTEM_PROMPT.lower()
+    assert "MenteE" in SYSTEM_PROMPT
+    assert "product_sales_data" in SYSTEM_PROMPT
+
+
+class _FakeAgent:
+    def __init__(self):
+        self.seen = None
+
+    def invoke(self, payload, config=None):
+        self.seen = payload["messages"]
+        return {"messages": payload["messages"] + [AIMessage(content="ok")]}
+
+
+def test_ask_agent_includes_history_for_follow_ups():
+    agent = _FakeAgent()
+    out = ask_agent(
+        agent,
+        "chart the above book",
+        history=[
+            {"role": "user", "text": "which book sells most?"},
+            {"role": "agent", "text": "Ultra Comic is the top-selling book."},
+        ],
+    )
+    assert isinstance(agent.seen[0], HumanMessage)
+    assert isinstance(agent.seen[1], AIMessage)
+    assert agent.seen[-1].content == "chart the above book"
+    assert out["answer"] == "ok"
+
+
+def test_ask_agent_limits_history_and_skips_empty_turns():
+    agent = _FakeAgent()
+    history = [{"role": "user", "text": f"turn {i}"} for i in range(30)]
+    history.insert(1, {"role": "user", "text": "   "})
+    ask_agent(agent, "last question", history=history)
+    assert len(agent.seen) == 13  # 12 history turns + the question
+    assert agent.seen[-1].content == "last question"

@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import FORECAST_HORIZON_DAYS, FORECAST_VALIDATION_DAYS
-from src.services.sales_service import daily_series
+from src.services.sales_service import daily_series, latest_sale_date
 
 
 def _mae(actual, pred) -> float:
@@ -90,7 +90,8 @@ def forecast_demand(product_id: int, horizon: int | None = None,
         pred = fn(series, horizon)
     # round to integers
     pred_int = [int(round(float(p))) for p in pred]
-    future_dates = [(date.today() + timedelta(days=i + 1)).isoformat() for i in range(horizon)]
+    end = latest_sale_date() or date.today()
+    future_dates = [(end + timedelta(days=i + 1)).isoformat() for i in range(horizon)]
     return {
         "product_id": product_id,
         "method": method,

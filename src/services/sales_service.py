@@ -18,9 +18,10 @@ def _load_sales(product_id: int | None = None, days: int | None = None) -> pd.Da
             q += " AND product_id = ?"
             params.append(product_id)
         if days is not None:
-            cutoff = (date.today() - timedelta(days=days)).isoformat()
-            q += " AND sale_date >= ?"
-            params.append(cutoff)
+            end = latest_sale_date() or date.today()
+            start = end - timedelta(days=max(1, int(days)) - 1)
+            q += " AND sale_date >= ? AND sale_date <= ?"
+            params.extend([start.isoformat(), end.isoformat()])
         df = pd.read_sql_query(q, conn, params=params)
     finally:
         conn.close()
@@ -28,6 +29,23 @@ def _load_sales(product_id: int | None = None, days: int | None = None) -> pd.Da
         df["sale_date"] = pd.to_datetime(df["sale_date"])
         df["revenue"] = df["quantity"] * df["unit_price"]
     return df
+
+
+def latest_sale_date() -> date | None:
+    """Most recent day with sales data - the dataset's effective 'today'.
+
+    The seeded history ends in the past, so every window ("last 30 days",
+    forecast dates) is anchored here instead of the wall clock to avoid
+    fake trailing zero days.
+    """
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT MAX(sale_date) FROM sales").fetchone()
+    finally:
+        conn.close()
+    if not row or row[0] is None:
+        return None
+    return date.fromisoformat(str(row[0]))
 
 
 def sales_summary(days: int | None = None) -> dict:
@@ -103,15 +121,22 @@ def sales_trend(product_id: int, freq: str = "W") -> list[dict]:
 
 
 def daily_series(product_id: int, days: int = 90) -> pd.Series:
-    df = _load_sales(product_id=product_id, days=days)
+    """Daily units for one product, ending on the latest day with data."""
+    days = max(1, int(days))
+    end = latest_sale_date() or date.today()
+    idx = pd.date_range(end=end, periods=days, freq="D")
+    df = _load_sales(product_id=product_id)
     if df.empty:
-        idx = pd.date_range(end=date.today(), periods=days, freq="D")
-        return pd.Series(0, index=idx)
+        return pd.Series(0, index=idx, dtype=float)
+    df = df[df["sale_date"] <= pd.Timestamp(end)]
     s = df.set_index("sale_date")["quantity"].resample("D").sum()
-    # reindex to full range
-    full = pd.date_range(end=date.today(), periods=days, freq="D")
-    s = s.reindex(full, fill_value=0)
-    return s
+    return s.reindex(idx, fill_value=0).astype(float)
+
+
+def product_daily_sales(product_id: int, days: int = 30) -> list[dict]:
+    """Units sold per calendar day for one product (chart-ready, zero-filled)."""
+    s = daily_series(product_id, days=days)
+    return [{"date": str(idx.date()), "units": int(v)} for idx, v in s.items()]
 
 
 def revenue_by_category(days: int | None = None) -> list[dict]:
@@ -131,24 +156,26 @@ def revenue_by_category(days: int | None = None) -> list[dict]:
 def daily_totals(days: int = 30) -> list[dict]:
     """Units and revenue per calendar day for the last `days` days.
 
-    Missing days are filled with zeros so the series is chart-ready.
+    The window ends on the latest day with data and missing days are filled
+    with zeros, so the series is chart-ready with no fake trailing days.
     """
     days = max(1, int(days))
+    end = latest_sale_date() or date.today()
+    cutoff = (end - timedelta(days=days - 1)).isoformat()
     conn = get_connection()
     try:
-        cutoff = (date.today() - timedelta(days=days - 1)).isoformat()
         rows = conn.execute(
             """SELECT sale_date, SUM(quantity) AS units, SUM(quantity*unit_price) AS revenue
-               FROM sales WHERE sale_date >= ?
+               FROM sales WHERE sale_date >= ? AND sale_date <= ?
                GROUP BY sale_date ORDER BY sale_date;""",
-            (cutoff,),
+            (cutoff, end.isoformat()),
         ).fetchall()
     finally:
         conn.close()
     by_day = {r[0]: (int(r[1]), float(r[2] or 0)) for r in rows}
     out: list[dict] = []
     for i in range(days):
-        d = (date.today() - timedelta(days=days - 1 - i)).isoformat()
+        d = (end - timedelta(days=days - 1 - i)).isoformat()
         units, revenue = by_day.get(d, (0, 0.0))
         out.append({"date": d, "units": units, "revenue": round(revenue, 2)})
     return out

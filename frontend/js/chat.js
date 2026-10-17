@@ -456,13 +456,13 @@
   }
 
   /* ---------- agent call (live mode) ---------- */
-  function callAgent(q) {
+  function callAgent(q, history) {
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 120000);
     return fetch(window.appApiBase() + '/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: q }),
+      body: JSON.stringify({ message: q, history: history || [] }),
       signal: controller.signal
     }).finally(function () { clearTimeout(timer); }).then(function (r) {
       if (!r.ok) {
@@ -484,6 +484,9 @@
     addMessage('user', q);
 
     var conv = getActiveConv();
+    var prior = conv.messages.slice(-12).map(function (m) {
+      return { role: m.role === 'agent' ? 'agent' : 'user', text: m.text };
+    });
     conv.messages.push({ role: 'user', text: q, ts: Date.now() });
     if (conv.title === 'New conversation') {
       conv.title = q.length > 42 ? q.slice(0, 42) + '…' : q;
@@ -495,7 +498,7 @@
     addTyping();
 
     if (window.APP_MODE === 'live') {
-      callAgent(q).then(function (res) {
+      callAgent(q, prior).then(function (res) {
         removeTyping();
         var a = res.answer || '(empty response from the model)';
         addMessage('agent', a, { tools: res.tools, charts: res.charts });

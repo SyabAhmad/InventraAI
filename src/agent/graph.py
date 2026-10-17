@@ -4,13 +4,14 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 
 from src.agent.llm import get_chat_model
 from src.tools.agent_tools import AGENT_TOOLS
 
 CHART_TOOL_NAMES = {"make_bar_chart", "make_line_chart", "make_pie_chart"}
+MAX_HISTORY_TURNS = 12
 
 SYSTEM_PROMPT = """You are MenteE, an inventory management assistant for an e-commerce store.
 
@@ -27,13 +28,17 @@ Rules:
    - No closing fluff, no "let me know if...", no extra background sections.
    - Only expand beyond this when the user explicitly asks for the full list or details.
 5. Charts - when the user asks for a chart, graph, or plot:
-   a. First fetch the data with a data tool (daily_sales_data, top_sellers,
+   a. First fetch the data with a data tool (product_sales_data for one product's
+      daily sales, daily_sales_data for store totals, top_sellers,
       revenue_by_category, forecast_demand, list_low_stock, ...).
    b. Then call make_bar_chart / make_line_chart / make_pie_chart with labels and
       values copied EXACTLY from that data. Never alter or invent numbers.
    c. After the chart tool succeeds, reply with ONE short line only - the chart title.
       No summary, no commentary, no extra numbers: the chart IS the answer.
-6. If a tool returns an error (e.g. product not found), say so in one line and suggest
+6. Follow-up questions: earlier turns are included in the conversation. Resolve
+   "that product", "the above", "it" to the most recent relevant product or topic
+   named in the conversation. Never claim you lack context that is present there.
+7. If a tool returns an error (e.g. product not found), say so in one line and suggest
    a close match using search_products.
 """
 
@@ -47,17 +52,32 @@ def create_inventory_agent():
     )
 
 
-def ask_agent(agent: Any, question: str) -> dict:
+def _history_messages(history: list[dict] | None) -> list:
+    """Convert stored chat turns into LangChain messages (oldest first)."""
+    messages: list = []
+    for turn in (history or [])[-MAX_HISTORY_TURNS:]:
+        role = str(turn.get("role", "user")).lower()
+        text = str(turn.get("text", "")).strip()
+        if not text:
+            continue
+        messages.append(AIMessage(content=text) if role in ("agent", "assistant") else HumanMessage(content=text))
+    return messages
+
+
+def ask_agent(agent: Any, question: str, history: list[dict] | None = None) -> dict:
     """Run one question through the agent.
 
-    Returns {"answer": str, "steps": int, "tools": list[str], "charts": list[dict]}
+    `history` holds earlier turns of the current conversation (oldest first),
+    so follow-ups like "chart that product" have context. Returns
+    {"answer": str, "steps": int, "tools": list[str], "charts": list[dict]}
     where `tools` lists the tools the agent actually called (in order) and
     `charts` contains chart specs produced by the chart tools (rendered by the
     chat UI). Raises on provider/network errors so callers can surface them
     without faking data.
     """
+    messages = _history_messages(history) + [HumanMessage(content=question)]
     result = agent.invoke(
-        {"messages": [HumanMessage(content=question)]},
+        {"messages": messages},
         config={"recursion_limit": 25},
     )
     messages = result.get("messages", [])

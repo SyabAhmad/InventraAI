@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.services.sales_service import (
     daily_totals,
+    product_daily_sales,
     revenue_by_category,
     sales_summary,
     slow_movers,
@@ -17,6 +18,19 @@ def tool_sales_summary(days: int | None = None) -> dict:
 def tool_daily_sales(days: int = 30) -> list[dict]:
     """Units and revenue per day - chart-ready series."""
     return daily_totals(days=days)
+
+
+def tool_product_daily_sales(product_name_or_sku: str, days: int = 30) -> dict:
+    from src.services.inventory_service import get_product
+    p = get_product(name=product_name_or_sku) or get_product(sku=product_name_or_sku)
+    if not p:
+        return {"error": f"Product '{product_name_or_sku}' not found."}
+    return {
+        "product": p["name"],
+        "sku": p["sku"],
+        "category": p["category"],
+        "days": product_daily_sales(p["product_id"], days=days),
+    }
 
 
 def tool_top_sellers(n: int = 10, days: int | None = None) -> list[dict]:

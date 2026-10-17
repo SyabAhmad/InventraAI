@@ -85,12 +85,19 @@ real error** — it never fabricates an answer.
   with small "used: tool" chips showing which tools the agent called.
   The assistant is named **MenteE**. Snapshot mode keeps the local intent
   engine so the static page still works.
+- **Conversation memory** — the client sends the last 12 turns with each
+  question, so follow-ups like "chart the above book" resolve against what was
+  already discussed (no new chat needed). The backend rebuilds the message
+  list (`HumanMessage`/`AIMessage`) before each agent run.
 - **Charts in chat** — two-tool pipeline: the agent fetches numbers with a data
-  tool (`daily_sales_data`, `top_sellers`, ...) and passes them to
+  tool (`product_sales_data` for one product's daily sales, `daily_sales_data`
+  for store totals, `top_sellers`, ...) and passes them to
   `make_bar_chart` / `make_line_chart` / `make_pie_chart`. The chart tool only
   validates and formats (never computes), returns a spec, and the chat UI
   renders it as a real Chart.js chart. After a chart, the agent answers with a
   single title line — nothing else.
+- Daily series are anchored on the **latest day with data**, not the wall
+  clock, so "last 3 days" never shows fake trailing zeros.
 - Markdown is rendered safely: HTML is escaped **before** Markdown parsing, so
   model output can never inject tags.
 
