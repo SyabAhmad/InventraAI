@@ -1,7 +1,7 @@
 # Phase 4 — Agentic LLM & Reorder Recommendations
 
 > **Branch:** `phase-4-agent-reorder`
-> **Status:** Complete · Live-tested against Ollama Cloud
+> **Status:** Complete · Pushed (live-tested)
 
 Phase 4 turns the validated data layer (Phases 2-3) into an **agent**: a LangGraph
 ReAct tool-loop that decides which tools to call, collects real data, and answers
@@ -124,4 +124,4 @@ HTTP instead of answering locally. The agent code does not change.
 
 ---
 
-*Phase 4 complete. Held locally. Not pushed until user confirms.*
+*Phase 4 complete. Pushed.*

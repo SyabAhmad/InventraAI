@@ -9,7 +9,7 @@ Final `main` merges all phases.
 | 2 | phase-2-inventory-tools | Done (pushed) |
 | 3 | phase-3-sales-forecast | Done (pushed) |
 | 4 | phase-4-agent-reorder | Done (pushed) |
-| 5 | phase-5-dashboard | Done |
+| 5 | phase-5-dashboard | Done (pushed) |
 | 6 | phase-6-benchmark | Pending |
 
 ## Phase 1 - Foundation

@@ -1,7 +1,7 @@
 # Phase 5 — Dashboard & API
 
 > **Branch:** `phase-5-dashboard`
-> **Status:** Complete · Live-tested (server + real agent calls through HTTP)
+> **Status:** Complete · Pushed (live-tested)
 
 Phase 5 turns the static dashboard into a **real application**. A FastAPI
 backend serves the frontend, reads live data from SQLite, and exposes the
