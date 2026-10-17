@@ -1,7 +1,7 @@
 # Phase 2 — Inventory Tools
 
 > **Branch:** `phase-2-inventory-tools`
-> **Status:** Complete · Not pushed (held by user request)
+> **Status:** Complete · Pushed (live-tested)
 
 This phase adds the validated inventory action layer that the agent (Phase 4) and dashboard (Phase 5) will call. Everything is tested manually and automatically.
 
@@ -125,4 +125,4 @@ Phase 2 gives us validated inventory actions. Phase 3 adds **sales analysis** (`
 
 ---
 
-*Phase 2 complete. Held locally. Awaiting go-ahead for Phase 3 and final push.*
+*Phase 2 complete. Pushed.*
