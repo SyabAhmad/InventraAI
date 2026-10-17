@@ -1,8 +1,9 @@
 # InventraAI — AI-Based Inventory Management Agent for E-commerce
 
-> **Phase 1 — Foundation.** This branch contains the project scaffold, configuration,
-> database schema, and dummy data. Subsequent phases (inventory tools, sales/forecast,
-> agent, dashboard, benchmarking) live on their own branches and merge into `main`.
+> **Phase 5 — Dashboard & API.** This branch contains the full build through
+> Phase 5: foundation, inventory tools, sales/forecasting, the LangGraph agent,
+> and the FastAPI backend serving the live dashboard. Benchmarking (Phase 6)
+> lives on its own branch; everything merges into `main`.
 
 Final Year Project (FYP 2) module owned by **Arzo Naveed**.
 Part of: *Cost-Efficient Optimization of Open-Source LLM Agents for System-Level Tasks*.
