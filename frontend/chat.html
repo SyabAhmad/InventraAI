@@ -5,93 +5,72 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>InventraAI — Chat</title>
 <link rel="stylesheet" href="css/style.css" />
-<style>
-.chat-box { max-width: 720px; margin: 0 auto; }
-.chat-window { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; min-height: 320px; max-height: 480px; overflow-y: auto; }
-.chat-msg { padding: 8px 10px; margin: 6px 0; border-radius: 6px; font-size: 14px; line-height: 1.5; }
-.chat-msg.user { background: var(--card2); text-align: right; margin-left: auto; max-width: 85%; }
-.chat-msg.agent { background: var(--bg); border-left: 3px solid var(--accent); max-width: 85%; }
-.chat-msg.error { background: rgba(220,38,38,.1); border-left: 3px solid var(--red); color: var(--red); }
-.chat-input-area { display: flex; gap: 8px; margin-top: 10px; }
-.chat-input-area input { flex: 1; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
-.chat-input-area button { background: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-.chat-suggestions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.chat-suggestion { background: var(--card2); border: 1px solid var(--border); padding: 6px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; color: var(--text); }
-.chat-suggestion:hover { background: var(--hover); }
-</style>
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar">
+
+  <aside class="sidebar" id="sidebar">
     <div class="brand">
       <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-      <div><div class="brand-name">InventraAI</div><div class="brand-sub">Chat (Phase 3)</div></div>
+      <div>
+        <div class="brand-name">InventraAI</div>
+        <div class="brand-sub">Inventory Agent</div>
+      </div>
     </div>
+
     <nav class="nav">
-      <a href="index.html" class="nav-item">Dashboard</a>
-      <a href="chat.html" class="nav-item active">Chat</a>
-      <a href="#" class="nav-item">Products</a>
-      <a href="#" class="nav-item">Low Stock</a>
+      <a class="nav-item" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a class="nav-item active" href="chat.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Chat</span>
+      </a>
     </nav>
+
+    <div class="sidebar-footer">
+      <div class="sub">Ask about stock, sales, forecasts</div>
+    </div>
   </aside>
+
   <main class="main">
-    <header class="topbar"><h1>Agent Chat</h1><span class="badge">Phase 3</span></header>
-    <div class="content">
-      <div class="chat-box">
-        <h2>Ask about inventory, sales, or forecasts</h2>
-        <div class="chat-window" id="chat-window"></div>
-        <div class="chat-input-area">
-          <input type="text" id="chat-input" placeholder="Ask a question... e.g., 'How many units of Smart Headphones?'" />
-          <button onclick="sendChat()">Send</button>
+    <header class="topbar">
+      <h1>Agent Chat</h1>
+      <span class="badge" id="model-badge"></span>
+    </header>
+
+    <div class="chat-layout">
+      <div class="chat-scroll" id="chat-scroll">
+        <div class="chat-thread" id="chat-thread">
+          <div class="chat-empty" id="chat-empty">
+            <h2>Inventory Assistant</h2>
+            <p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p>
+          </div>
         </div>
-        <div class="chat-suggestions">
-          <button class="chat-suggestion" onclick="fillChat('How many units of Smart Headphones?')">Smart Headphones stock</button>
-          <button class="chat-suggestion" onclick="fillChat('Which products are low stock?')">Low stock items</button>
-          <button class="chat-suggestion" onclick="fillChat('Forecast demand for SKU-0001')">Forecast SKU-0001</button>
-          <button class="chat-suggestion" onclick="fillChat('Show inventory summary')">Inventory summary</button>
+      </div>
+
+      <div class="chat-composer">
+        <div class="chat-hints">
+          <button class="chat-hint" data-q="Show inventory summary">Inventory summary</button>
+          <button class="chat-hint" data-q="Which products are low in stock?">Low stock</button>
+          <button class="chat-hint" data-q="Which products are out of stock?">Out of stock</button>
+          <button class="chat-hint" data-q="What are the top sellers?">Top sellers</button>
+          <button class="chat-hint" data-q="Forecast demand for SKU-0001">Forecast SKU-0001</button>
+          <button class="chat-hint" data-q="How many units of SKU-0002 are available?">Stock of SKU-0002</button>
+        </div>
+        <div class="chat-composer-inner">
+          <textarea id="chat-input" rows="1" placeholder="Ask a question..."></textarea>
+          <button class="chat-send" id="chat-send" title="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
         </div>
       </div>
     </div>
   </main>
+
 </div>
 <script src="js/data.js"></script>
-<script>
-function fillChat(text) { document.getElementById('chat-input').value = text; sendChat(); }
-function addMsg(role, text) {
-  const w = document.getElementById('chat-window');
-  const d = document.createElement('div');
-  d.className = 'chat-msg ' + role;
-  d.innerHTML = '<div>' + (role === 'user' ? '<strong>You:</strong> ' : '<strong>Agent:</strong> ') + text + '</div>';
-  w.appendChild(d); w.scrollTop = w.scrollHeight;
-}
-function sendChat() {
-  const input = document.getElementById('chat-input');
-  const q = input.value.trim();
-  if (!q) return;
-  addMsg('user', q);
-  input.value = '';
-  // Basic response logic using Phase 2 + 3 functions
-  setTimeout(() => {
-    let resp = '';
-    const lower = q.toLowerCase();
-    if (lower.includes('low stock') || lower.includes('low-stock')) {
-      const DATA = window.PRODUCTS_DATA || {};
-      resp = 'Low stock products: ' + (DATA.summary ? DATA.summary.low_stock_count : '28') + '. See Low Stock page for details.';
-    } else if (lower.includes('out of stock') || lower.includes('out-of-stock')) {
-      const DATA = window.PRODUCTS_DATA || {};
-      resp = 'Out of stock products: ' + (DATA.summary ? DATA.summary.out_of_stock_count : '10') + '.';
-    } else if (lower.includes('summary')) {
-      resp = 'Inventory summary available in Dashboard: products, total units, value, low/out counts.';
-    } else if (lower.includes('forecast') || lower.includes('demand')) {
-      resp = 'Forecasting uses 3 methods: moving average, exponential smoothing, linear trend. See Sales Summary for details.';
-    } else if (lower.includes('how many') || lower.includes('units')) {
-      resp = 'Use the Products page to search by SKU/name and view current stock for any product.';
-    } else {
-      resp = 'I can help with inventory status, low stock, out of stock, forecasts, and product details. Try asking about one of those.';
-    }
-    addMsg('agent', resp);
-  }, 400);
-}
-</script>
+<script src="js/chat.js"></script>
 </body>
 </html>
