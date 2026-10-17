@@ -1,4 +1,4 @@
-# AI-Based Inventory Management Agent for E-commerce
+# InventraAI — AI-Based Inventory Management Agent for E-commerce
 
 Final Year Project (FYP 2) — Module owned by **Arzo Naveed**.
 Part of: *Cost-Efficient Optimization of Open-Source LLM Agents for System-Level Tasks*.
