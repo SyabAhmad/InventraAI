@@ -103,6 +103,10 @@ Edit `.env` and set at least:
 
 Everything else has sensible defaults.
 
+> **LLM provider flexibility:** Any OpenAI-compatible provider works out of the
+> box (Ollama Cloud, Groq, OpenAI, local Ollama). Just set `LLM_BASE_URL`,
+> `LLM_API_KEY`, and `LLM_MODEL` in `.env` — no code changes needed.
+
 ### 5. Initialize the database (seed dummy data)
 
 ```bash

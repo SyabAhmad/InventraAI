@@ -30,13 +30,26 @@ def _get_float(key: str, default: float) -> float:
         return default
 
 
-# --- Ollama Cloud / LLM ---
-OLLAMA_BASE_URL = _get("OLLAMA_BASE_URL", "https://ollama.com/v1")
-OLLAMA_API_KEY = _get("OLLAMA_API_KEY", "")
-OLLAMA_MODEL = _get("OLLAMA_MODEL", "llama3.1:8b")
-OLLAMA_BENCHMARK_MODELS = [
-    m.strip() for m in _get("OLLAMA_BENCHMARK_MODELS", "llama3.1:8b").split(",") if m.strip()
+# --- LLM provider (OpenAI-compatible) ---
+# Supports any OpenAI-compatible endpoint: Ollama Cloud, Groq, OpenAI, etc.
+# Switch providers by changing these values in .env (no code changes).
+LLM_PROVIDER = _get("LLM_PROVIDER", _get("OLLAMA_PROVIDER", "ollama"))
+LLM_BASE_URL = _get("LLM_BASE_URL", _get("OLLAMA_BASE_URL", "https://ollama.com/v1"))
+LLM_API_KEY = _get("LLM_API_KEY", _get("OLLAMA_API_KEY", ""))
+LLM_MODEL = _get("LLM_MODEL", _get("OLLAMA_MODEL", "llama3.1:8b"))
+LLM_BENCHMARK_MODELS = [
+    m.strip() for m in _get(
+        "LLM_BENCHMARK_MODELS",
+        _get("OLLAMA_BENCHMARK_MODELS", "llama3.1:8b"),
+    ).split(",") if m.strip()
 ]
+
+# Backward-compatible aliases (existing code / .env may use OLLAMA_* names)
+OLLAMA_PROVIDER = LLM_PROVIDER
+OLLAMA_BASE_URL = LLM_BASE_URL
+OLLAMA_API_KEY = LLM_API_KEY
+OLLAMA_MODEL = LLM_MODEL
+OLLAMA_BENCHMARK_MODELS = LLM_BENCHMARK_MODELS
 
 # --- Database ---
 DATABASE_PATH = _get("DATABASE_PATH", "data/inventory.db")
