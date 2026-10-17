@@ -126,3 +126,29 @@ def revenue_by_category(days: int | None = None) -> list[dict]:
     df = df.merge(prod, on="product_id", how="left")
     g = df.groupby("category").agg(units=("quantity", "sum"), revenue=("revenue", "sum")).reset_index()
     return g.to_dict(orient="records")
+
+
+def daily_totals(days: int = 30) -> list[dict]:
+    """Units and revenue per calendar day for the last `days` days.
+
+    Missing days are filled with zeros so the series is chart-ready.
+    """
+    days = max(1, int(days))
+    conn = get_connection()
+    try:
+        cutoff = (date.today() - timedelta(days=days - 1)).isoformat()
+        rows = conn.execute(
+            """SELECT sale_date, SUM(quantity) AS units, SUM(quantity*unit_price) AS revenue
+               FROM sales WHERE sale_date >= ?
+               GROUP BY sale_date ORDER BY sale_date;""",
+            (cutoff,),
+        ).fetchall()
+    finally:
+        conn.close()
+    by_day = {r[0]: (int(r[1]), float(r[2] or 0)) for r in rows}
+    out: list[dict] = []
+    for i in range(days):
+        d = (date.today() - timedelta(days=days - 1 - i)).isoformat()
+        units, revenue = by_day.get(d, (0, 0.0))
+        out.append({"date": d, "units": units, "revenue": round(revenue, 2)})
+    return out

@@ -34,8 +34,9 @@ def create_inventory_agent():
 def ask_agent(agent: Any, question: str) -> dict:
     """Run one question through the agent.
 
-    Returns {"answer": str, "steps": int}. Raises on provider/network errors
-    so callers can apply their own fallback.
+    Returns {"answer": str, "steps": int, "tools": list[str]} where `tools`
+    lists the tools the agent actually called (in order). Raises on
+    provider/network errors so callers can surface them without faking data.
     """
     result = agent.invoke(
         {"messages": [HumanMessage(content=question)]},
@@ -43,4 +44,12 @@ def ask_agent(agent: Any, question: str) -> dict:
     )
     messages = result.get("messages", [])
     answer = messages[-1].content if messages else ""
-    return {"answer": answer, "steps": len(messages)}
+
+    tool_names: list[str] = []
+    for m in messages:
+        for call in getattr(m, "tool_calls", None) or []:
+            name = call.get("name") if isinstance(call, dict) else getattr(call, "name", None)
+            if name:
+                tool_names.append(name)
+
+    return {"answer": answer, "steps": len(messages), "tools": tool_names}
