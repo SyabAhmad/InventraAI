@@ -54,9 +54,10 @@ def seed_database(db_path: str | None = None, n_products: int = 100,
         conn.commit()
 
     cur.execute("SELECT COUNT(*) FROM products;")
-    if cur.fetchone()[0] > 0:
+    existing = cur.fetchone()[0]
+    if existing > 0:
         conn.close()
-        return {"status": "already_seeded", "products": cur.execute("SELECT COUNT(*) FROM products;").fetchone()[0]}
+        return {"status": "already_seeded", "products": existing}
 
     rng = random.Random(seed)
     today = date.today()
