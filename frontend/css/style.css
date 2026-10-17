@@ -148,3 +148,32 @@ html, body { height: 100%; overflow: hidden; }
 #content.chat-mode { padding: 0; overflow: hidden; display: flex; }
 
 .chat-layout { flex: 1; min-height: 0; height: auto; }
+
+
+/* ============ Collapsible sidebar ============ */
+.sidebar { width: 232px; transition: width .2s ease; }
+.sidebar-toggle {
+  position: fixed; top: 16px; left: calc(232px - 14px);
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0; z-index: 30; box-shadow: 0 1px 3px rgba(31,41,55,.12);
+  transition: left .2s ease;
+}
+.sidebar-toggle svg { width: 16px; height: 16px; stroke: var(--muted); }
+.sidebar-toggle .chev { transition: transform .2s ease; }
+.sidebar-toggle:hover { border-color: var(--accent); }
+.sidebar-toggle:hover svg { stroke: var(--accent); }
+
+.sidebar.collapsed { width: 64px; }
+.sidebar.collapsed .sidebar-toggle { left: calc(64px - 14px); }
+.sidebar.collapsed .sidebar-toggle .chev { transform: rotate(180deg); }
+.sidebar.collapsed .brand { justify-content: center; padding-left: 0; padding-right: 0; }
+.sidebar.collapsed .brand > div:not(.brand-icon) { display: none; }
+.sidebar.collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+.sidebar.collapsed .nav-item span { display: none; }
+.sidebar.collapsed .sidebar-footer { display: none; }
+
+@media (max-width: 860px) {
+  .sidebar-toggle { left: 12px; }
+}

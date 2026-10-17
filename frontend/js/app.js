@@ -262,7 +262,23 @@
       btn.addEventListener('click', () => switchView(btn.dataset.view));
     });
     switchView('overview');
+
+    // restore sidebar collapse state
+    var sb = document.getElementById('sidebar');
+    if (sb) {
+      try {
+        if (localStorage.getItem('inventraai_sidebar_collapsed') === '1') sb.classList.add('collapsed');
+      } catch (e) { /* ignore */ }
+    }
   }
+
+  window.toggleSidebar = function () {
+    var sb = document.getElementById('sidebar');
+    if (!sb) return;
+    if (window.innerWidth <= 860) { sb.classList.toggle('open'); return; }
+    var collapsed = sb.classList.toggle('collapsed');
+    try { localStorage.setItem('inventraai_sidebar_collapsed', collapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+  };
 
   document.addEventListener('DOMContentLoaded', init);
 })();
