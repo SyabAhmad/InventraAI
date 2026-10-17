@@ -5,7 +5,9 @@ Welcome! This folder holds plain-English documentation for InventraAI.
 ## Where to start
 
 - **[Phase 1 — Foundation](PHASE1.md)** — what was built first and how to run it.
-- More phase docs will be added as each phase is completed.
+- **[Phase 2 — Inventory Tools](PHASE2.md)** — validated inventory queries, low/out-of-stock detection.
+- **[Phase 3 — Sales & Forecasting](PHASE3.md)** — sales analysis and demand forecasting.
+- **[Phase 4 — Agent & Reorder](PHASE4.md)** — the LangGraph agent and reorder engine.
 
 ## How to read these docs
 
