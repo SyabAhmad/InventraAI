@@ -82,8 +82,23 @@ def build_data() -> dict:
     finally:
         conn.close()
 
+    # safe config snapshot (no secrets)
+    try:
+        from src import config as _cfg
+        cfg = {
+            "LLM_PROVIDER": _cfg.LLM_PROVIDER,
+            "LLM_MODEL": _cfg.LLM_MODEL,
+            "LLM_BASE_URL": _cfg.LLM_BASE_URL,
+            "DATABASE_PATH": _cfg.DATABASE_PATH,
+            "DEFAULT_MIN_STOCK": _cfg.DEFAULT_MIN_STOCK,
+            "FORECAST_HORIZON_DAYS": _cfg.FORECAST_HORIZON_DAYS,
+        }
+    except Exception:
+        cfg = {}
+
     return {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "config": cfg,
         "summary": {
             "total_products": len(products),
             "total_stock_units": int(total_stock),
