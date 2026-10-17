@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.services.sales_service import (
+    daily_totals,
     revenue_by_category,
     sales_summary,
     slow_movers,
@@ -11,6 +12,11 @@ from src.services.sales_service import sales_trend as _trend
 
 def tool_sales_summary(days: int | None = None) -> dict:
     return sales_summary(days=days)
+
+
+def tool_daily_sales(days: int = 30) -> list[dict]:
+    """Units and revenue per day - chart-ready series."""
+    return daily_totals(days=days)
 
 
 def tool_top_sellers(n: int = 10, days: int | None = None) -> list[dict]:

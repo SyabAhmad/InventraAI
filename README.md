@@ -40,7 +40,8 @@ calls and explains results using real data.
 - **Sales analysis** — fast/slow sellers, revenue by category, trends over time.
 - **Demand forecasting** — moving average / exponential smoothing / linear trend with MAE/MAPE.
 - **Smart reorder recommendations** — reorder point, safety stock, recommended quantities.
-- **Natural-language interaction** — agent powered by Ollama Cloud (model configurable via `.env`).
+- **Natural-language interaction** — the **MenteE** assistant powered by Ollama Cloud (model configurable via `.env`).
+- **Charts in chat** — MenteE fetches data with a tool, builds bar/line/pie charts with a chart tool, rendered inline in the chat.
 - **Web dashboard** — FastAPI backend + HTML/JS (Chart.js) frontend.
 - **Model benchmarking** — compare multiple Ollama models on accuracy, success rate, latency, tokens, cost.
 

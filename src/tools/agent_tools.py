@@ -26,10 +26,16 @@ from src.tools.reorder_tools import (
     tool_reorder_summary,
 )
 from src.tools.sales_tools import (
+    tool_daily_sales,
     tool_revenue_by_category,
     tool_sales_summary,
     tool_slow_movers,
     tool_top_sellers,
+)
+from src.tools.chart_tools import (
+    tool_make_bar_chart,
+    tool_make_line_chart,
+    tool_make_pie_chart,
 )
 
 
@@ -125,6 +131,34 @@ def reorder_summary() -> dict:
     return tool_reorder_summary()
 
 
+@tool
+def daily_sales_data(days: int = 30) -> list:
+    """Daily units and revenue for the last N days (chart-ready series).
+    Use as the data source before calling a chart tool."""
+    return tool_daily_sales(days=days)
+
+
+@tool
+def make_bar_chart(title: str, labels: list, values: list, value_label: str = "Value") -> str:
+    """Render a BAR chart in the chat. Pass labels (names/dates/categories) and
+    values copied EXACTLY from a data tool result. Returns a chart specification."""
+    return tool_make_bar_chart(title, labels, values, value_label)
+
+
+@tool
+def make_line_chart(title: str, labels: list, values: list, value_label: str = "Value") -> str:
+    """Render a LINE chart in the chat (trends over time). Pass labels and values
+    copied EXACTLY from a data tool result. Returns a chart specification."""
+    return tool_make_line_chart(title, labels, values, value_label)
+
+
+@tool
+def make_pie_chart(title: str, labels: list, values: list, value_label: str = "Value") -> str:
+    """Render a PIE chart in the chat (shares of a total). Pass labels and values
+    copied EXACTLY from a data tool result. Returns a chart specification."""
+    return tool_make_pie_chart(title, labels, values, value_label)
+
+
 AGENT_TOOLS = [
     get_stock,
     list_low_stock,
@@ -141,4 +175,8 @@ AGENT_TOOLS = [
     recommend_reorder,
     recommend_all_reorders,
     reorder_summary,
+    daily_sales_data,
+    make_bar_chart,
+    make_line_chart,
+    make_pie_chart,
 ]

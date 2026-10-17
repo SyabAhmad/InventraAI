@@ -93,15 +93,30 @@ def test_chat_uses_agent_result(monkeypatch):
     monkeypatch.setattr(
         chat_routes,
         "run_question",
-        lambda q: {"answer": "There are 100 products.", "tools": ["inventory_summary"], "steps": 4},
+        lambda q: {"answer": "There are 100 products.", "tools": ["inventory_summary"], "charts": [], "steps": 4},
     )
     r = client.post("/api/chat", json={"message": "how many products are there?"})
     assert r.status_code == 200
     body = r.json()
     assert body["answer"] == "There are 100 products."
     assert body["tools"] == ["inventory_summary"]
+    assert body["charts"] == []
     assert body["steps"] == 4
     assert body["latency_ms"] >= 0
+
+
+def test_chat_passes_chart_specs(monkeypatch):
+    spec = {"chart_type": "bar", "title": "Top sellers", "labels": ["A"], "values": [7.0], "value_label": "Units"}
+    monkeypatch.setattr(
+        chat_routes,
+        "run_question",
+        lambda q: {"answer": "Top sellers.", "tools": ["top_sellers", "make_bar_chart"], "charts": [spec], "steps": 6},
+    )
+    r = client.post("/api/chat", json={"message": "chart the top sellers"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["charts"] == [spec]
+    assert body["tools"] == ["top_sellers", "make_bar_chart"]
 
 
 def test_chat_agent_failure_returns_502(monkeypatch):

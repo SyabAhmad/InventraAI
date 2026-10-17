@@ -537,6 +537,39 @@ tr:hover { background: var(--hover); }
 }
 .chat-bubble.error { border-color: #f5c6c2; background: #fdecea; }
 
+/* chat: inline charts rendered by the agent */
+.chat-chart { margin-top: 10px; }
+.chat-chart-box { position: relative; height: 220px; min-width: 280px; }
+
+/* confirm dialog (reuses modal styles) */
+.confirm-modal { max-width: 400px; }
+.confirm-text { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-danger {
+  background: var(--red);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.btn-danger:hover { filter: brightness(0.95); }
+
 /* topbar badge: live vs snapshot */
 .badge.live { background: var(--green); }
 .badge.snapshot { background: var(--accent); }

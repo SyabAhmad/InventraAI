@@ -11,6 +11,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     tools: list[str] = Field(default_factory=list, description="Tools the agent called, in order")
+    charts: list[dict] = Field(default_factory=list, description="Chart specs produced by chart tools")
     steps: int = 0
     latency_ms: float = 0.0
     model: str = ""

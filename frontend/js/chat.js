@@ -187,8 +187,17 @@
   function clearThread(keepEmptyState) {
     var thread = $('chat-thread');
     thread.innerHTML = keepEmptyState
-      ? '<div class="chat-empty" id="chat-empty"><h2>Inventory Assistant</h2><p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p></div>'
+      ? '<div class="chat-empty" id="chat-empty"><h2>MenteE</h2><p>Ask about stock, sales, or forecasts — or request a chart.</p></div>'
       : '';
+    updateHints();
+  }
+
+  function updateHints() {
+    var hints = $('chat-hints');
+    if (!hints) return;
+    var thread = $('chat-thread');
+    var hasMessages = !!(thread && thread.querySelector('.chat-row'));
+    hints.style.display = hasMessages ? 'none' : '';
   }
 
   function addMessage(role, text, meta) {
@@ -200,10 +209,10 @@
     row.className = 'chat-row ' + role;
     var avatar = document.createElement('div');
     avatar.className = 'chat-avatar';
-    avatar.textContent = role === 'user' ? 'You' : 'AI';
+    avatar.textContent = role === 'user' ? 'You' : 'M';
     var bubble = document.createElement('div');
     bubble.className = 'chat-bubble' + (meta.error ? ' error' : '');
-    var html = '<span class="who">' + (role === 'user' ? 'You' : 'Agent') + '</span>';
+    var html = '<span class="who">' + (role === 'user' ? 'You' : 'MenteE') + '</span>';
     if (role === 'agent') {
       html += '<div class="md">' + mdToHtml(text) + '</div>';
     } else {
@@ -218,7 +227,96 @@
     row.appendChild(avatar);
     row.appendChild(bubble);
     thread.appendChild(row);
+    if (meta.charts && meta.charts.length) renderChatCharts(bubble, meta.charts);
+    updateHints();
     scrollBottom();
+  }
+
+  /* ---------- charts in chat ---------- */
+  function chartAxisOptions() {
+    var tick = '#6b6b6b';
+    var grid = 'rgba(227,221,209,.6)';
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 300 },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tick, font: { size: 10 }, maxTicksLimit: 10, autoSkip: true }, grid: { color: grid } },
+        y: { beginAtZero: true, ticks: { color: tick, font: { size: 10 } }, grid: { color: grid } },
+      },
+    };
+  }
+
+  function drawChatChart(canvas, spec) {
+    var palette = ['#8b6f47', '#3a7d44', '#b8860b', '#c0392b', '#6b6b6b', '#a58b6f', '#7a9e7e', '#d0b28a'];
+    var cfg;
+    if (spec.chart_type === 'pie') {
+      cfg = {
+        type: 'pie',
+        data: {
+          labels: spec.labels,
+          datasets: [{ data: spec.values, backgroundColor: palette, borderColor: '#ffffff', borderWidth: 1 }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#6b6b6b', boxWidth: 10, font: { size: 10 } } } },
+        },
+      };
+    } else if (spec.chart_type === 'line') {
+      cfg = {
+        type: 'line',
+        data: {
+          labels: spec.labels,
+          datasets: [{
+            label: spec.value_label || 'Value',
+            data: spec.values,
+            borderColor: '#8b6f47',
+            backgroundColor: 'rgba(139,111,71,.12)',
+            fill: true, tension: .25, pointRadius: 2, borderWidth: 2,
+          }],
+        },
+        options: chartAxisOptions(),
+      };
+    } else {
+      cfg = {
+        type: 'bar',
+        data: {
+          labels: spec.labels,
+          datasets: [{
+            label: spec.value_label || 'Value',
+            data: spec.values,
+            backgroundColor: 'rgba(139,111,71,.75)',
+            borderColor: '#8b6f47',
+            borderWidth: 1,
+          }],
+        },
+        options: chartAxisOptions(),
+      };
+    }
+    try {
+      new Chart(canvas.getContext('2d'), cfg);
+    } catch (e) { /* keep the message readable even if the chart fails */ }
+  }
+
+  function renderChatCharts(container, specs) {
+    if (!specs || !specs.length) return;
+    if (typeof Chart === 'undefined') return;
+    specs.forEach(function (spec) {
+      if (!spec || !spec.labels || !spec.values) return;
+      var wrap = document.createElement('div');
+      wrap.className = 'chat-chart';
+      var box = document.createElement('div');
+      box.className = 'chat-chart-box';
+      var canvas = document.createElement('canvas');
+      box.appendChild(canvas);
+      wrap.appendChild(box);
+      var toolsEl = container.querySelector('.chat-tools');
+      if (toolsEl) container.insertBefore(wrap, toolsEl);
+      else container.appendChild(wrap);
+      drawChatChart(canvas, spec);
+    });
   }
 
   function addTyping() {
@@ -226,7 +324,7 @@
     var row = document.createElement('div');
     row.className = 'chat-row agent';
     row.id = 'typing-row';
-    row.innerHTML = '<div class="chat-avatar">AI</div><div class="chat-bubble"><span class="who">Agent</span><span class="chat-typing"><span></span><span></span><span></span></span></div>';
+    row.innerHTML = '<div class="chat-avatar">M</div><div class="chat-bubble"><span class="who">MenteE</span><span class="chat-typing"><span></span><span></span><span></span></span></div>';
     thread.appendChild(row);
     scrollBottom();
   }
@@ -267,9 +365,52 @@
     list.querySelectorAll('.conv-del').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
-        deleteConv(btn.getAttribute('data-del'));
+        confirmDialog('Delete conversation', 'This conversation and all its messages will be permanently removed.', function () {
+          deleteConv(btn.getAttribute('data-del'));
+        });
       });
     });
+  }
+
+  function confirmDialog(title, message, onConfirm) {
+    var existing = $('chat-confirm');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'chat-confirm';
+    overlay.innerHTML =
+      '<div class="modal confirm-modal">' +
+        '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
+        '<button class="modal-close" title="Cancel" data-act="cancel">×</button></div>' +
+        '<p class="confirm-text">' + esc(message) + '</p>' +
+        '<div class="confirm-actions">' +
+          '<button class="btn-ghost" data-act="cancel">Cancel</button>' +
+          '<button class="btn-danger" data-act="confirm">Delete</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    function close() {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close();
+    }
+
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) { close(); return; }
+      var act = e.target.getAttribute ? e.target.getAttribute('data-act') : null;
+      if (!act) return;
+      if (act === 'confirm') {
+        close();
+        onConfirm();
+      } else {
+        close();
+      }
+    });
+    document.addEventListener('keydown', onKey);
   }
 
   function deleteConv(id) {
@@ -307,7 +448,7 @@
     for (var i = 0; i < convs.length; i++) if (convs[i].id === id) conv = convs[i];
     clearThread(false);
     if (conv && conv.messages.length) {
-      conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools }); });
+      conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools, charts: m.charts }); });
     } else {
       clearThread(true);
     }
@@ -357,9 +498,9 @@
       callAgent(q).then(function (res) {
         removeTyping();
         var a = res.answer || '(empty response from the model)';
-        addMessage('agent', a, { tools: res.tools });
+        addMessage('agent', a, { tools: res.tools, charts: res.charts });
         conv = getActiveConv();
-        conv.messages.push({ role: 'agent', text: a, tools: res.tools || [], ts: Date.now() });
+        conv.messages.push({ role: 'agent', text: a, tools: res.tools || [], charts: res.charts || [], ts: Date.now() });
         persist(conv);
         renderConvList();
       }).catch(function (err) {
@@ -393,11 +534,10 @@
   var HINTS = [
     'Show inventory summary',
     'Which products are low in stock?',
-    'Which products are out of stock?',
-    'What are the top sellers?',
     'What should I reorder first?',
-    'Forecast demand for SKU-0001',
-    'How many units of SKU-0002 are available?'
+    'Make a bar chart of the top sellers',
+    'Chart daily revenue for the last 30 days',
+    'Forecast demand for SKU-0001'
   ];
 
   function template() {
@@ -414,13 +554,13 @@
           <div class="chat-scroll" id="chat-scroll">
             <div class="chat-thread" id="chat-thread">
               <div class="chat-empty" id="chat-empty">
-                <h2>Inventory Assistant</h2>
-                <p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p>
+                <h2>MenteE</h2>
+                <p>Ask about stock, sales, or forecasts — or request a chart.</p>
               </div>
             </div>
           </div>
           <div class="chat-composer">
-            <div class="chat-hints">
+            <div class="chat-hints" id="chat-hints">
               ${HINTS.map(h => `<button class="chat-hint" data-q="${esc(h)}">${esc(h)}</button>`).join('')}
             </div>
             <div class="chat-composer-inner">
@@ -446,7 +586,7 @@
     var conv = getActiveConv();
     if (conv.messages.length) {
       clearThread(false);
-      conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools }); });
+      conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools, charts: m.charts }); });
     } else if (window.APP_MODE !== 'live') {
       addMessage('agent', 'Backend offline — running in snapshot mode.\nStart the API (uvicorn src.api.main:app) to chat with the real LangGraph agent over live data.');
     }

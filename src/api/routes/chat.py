@@ -48,6 +48,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
     return ChatResponse(
         answer=result.get("answer", ""),
         tools=result.get("tools", []),
+        charts=result.get("charts", []),
         steps=result.get("steps", 0),
         latency_ms=latency_ms,
         model=LLM_MODEL,
