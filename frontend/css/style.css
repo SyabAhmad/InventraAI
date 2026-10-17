@@ -177,3 +177,31 @@ html, body { height: 100%; overflow: hidden; }
 @media (max-width: 860px) {
   .sidebar-toggle { left: 12px; }
 }
+
+
+/* ============ Chat v2: conversation side panel ============ */
+.chat-layout { gap: 0; }
+.chat-history {
+  width: 250px; flex-shrink: 0; border-right: 1px solid var(--border);
+  background: var(--sidebar-bg); display: flex; flex-direction: column; min-height: 0;
+}
+.chat-history-head { padding: 12px; border-bottom: 1px solid var(--border); }
+.chat-history-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 10px; }
+.chat-history-list { flex: 1; overflow-y: auto; padding: 8px; min-height: 0; }
+.conv-item { position: relative; padding: 9px 30px 9px 10px; border-radius: 2px; cursor: pointer; margin-bottom: 4px; }
+.conv-item:hover { background: var(--hover); }
+.conv-item.active { background: var(--card); border-left: 3px solid var(--accent); }
+.conv-item .t { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
+.conv-item .m { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.conv-del { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 6px; display: none; font-family: inherit; }
+.conv-item:hover .conv-del { display: block; }
+.conv-del:hover { color: var(--red); }
+.chat-history-empty { color: var(--muted); font-size: 12px; padding: 10px; font-style: italic; }
+.chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.chat-main .chat-scroll { flex: 1; }
+.chat-newbtn {
+  width: 100%; background: var(--accent); color: #fff; border: none; font-family: inherit;
+  font-size: 13px; font-weight: 600; padding: 9px 12px; border-radius: 2px; cursor: pointer;
+}
+.chat-newbtn:hover { filter: brightness(0.95); }
+@media (max-width: 860px) { .chat-history { display: none; } }

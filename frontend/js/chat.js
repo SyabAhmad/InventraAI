@@ -210,23 +210,63 @@
     if (sc) sc.scrollTop = sc.scrollHeight;
   }
 
-  /* ---------- history bar ---------- */
-  function renderHistoryBar() {
-    var sel = $('chat-conv-select');
-    if (!sel) return;
+  /* ---------- history side panel ---------- */
+  function renderConvList() {
+    var list = $('chat-conv-list');
+    if (!list) return;
     var convs = loadConvs();
     var activeId = localStorage.getItem(LS_ACTIVE);
-    sel.innerHTML = convs.map(function (c) {
-      return '<option value="' + c.id + '"' + (c.id === activeId ? ' selected' : '') + '>' +
-        esc(c.title) + ' (' + c.messages.length + ')</option>';
+    if (!convs.length) {
+      list.innerHTML = '<div class="chat-history-empty">No conversations yet.</div>';
+      return;
+    }
+    list.innerHTML = convs.map(function (c) {
+      var when = new Date(c.ts).toLocaleDateString();
+      return '<div class="conv-item' + (c.id === activeId ? ' active' : '') + '" data-id="' + c.id + '" title="' + esc(c.title) + '">' +
+        '<div class="t">' + esc(c.title) + '</div>' +
+        '<div class="m">' + c.messages.length + ' messages · ' + when + '</div>' +
+        '<button class="conv-del" data-del="' + c.id + '" title="Delete conversation">×</button>' +
+        '</div>';
     }).join('');
+
+    list.querySelectorAll('.conv-item').forEach(function (item) {
+      item.addEventListener('click', function (e) {
+        if (e.target.closest('.conv-del')) return;
+        switchConv(item.getAttribute('data-id'));
+      });
+    });
+    list.querySelectorAll('.conv-del').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        deleteConv(btn.getAttribute('data-del'));
+      });
+    });
+  }
+
+  function deleteConv(id) {
+    var convs = loadConvs();
+    var removed = null;
+    convs = convs.filter(function (c) {
+      if (c.id === id) { removed = c; return false; }
+      return true;
+    });
+    saveConvs(convs);
+    if (localStorage.getItem(LS_ACTIVE) === id) {
+      if (convs.length) {
+        switchConv(convs[0].id);
+        return;
+      }
+      localStorage.removeItem(LS_ACTIVE);
+      clearThread(true);
+    }
+    renderConvList();
   }
 
   function newChat() {
     var convs = loadConvs();
     var conv = createConv(convs);
     clearThread(true);
-    renderHistoryBar();
+    renderConvList();
     var input = $('chat-input');
     if (input) input.focus();
   }
@@ -242,7 +282,7 @@
     } else {
       clearThread(true);
     }
-    renderHistoryBar();
+    renderConvList();
   }
 
   /* ---------- send flow ---------- */
@@ -260,7 +300,7 @@
       conv.title = q.length > 42 ? q.slice(0, 42) + '…' : q;
     }
     persist(conv);
-    renderHistoryBar();
+    renderConvList();
 
     busy = true;
     addTyping();
@@ -294,27 +334,32 @@
   function template() {
     return `
       <div class="chat-layout">
-        <div class="chat-historybar">
-          <select id="chat-conv-select" title="Conversation history"></select>
-          <button class="btn-newchat" id="chat-new">+ New chat</button>
+        <div class="chat-history">
+          <div class="chat-history-head">
+            <div class="chat-history-title">Conversations</div>
+            <button class="chat-newbtn" id="chat-new">+ New chat</button>
+          </div>
+          <div class="chat-history-list" id="chat-conv-list"></div>
         </div>
-        <div class="chat-scroll" id="chat-scroll">
-          <div class="chat-thread" id="chat-thread">
-            <div class="chat-empty" id="chat-empty">
-              <h2>Inventory Assistant</h2>
-              <p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p>
+        <div class="chat-main">
+          <div class="chat-scroll" id="chat-scroll">
+            <div class="chat-thread" id="chat-thread">
+              <div class="chat-empty" id="chat-empty">
+                <h2>Inventory Assistant</h2>
+                <p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="chat-composer">
-          <div class="chat-hints">
-            ${HINTS.map(h => `<button class="chat-hint" data-q="${esc(h)}">${esc(h)}</button>`).join('')}
-          </div>
-          <div class="chat-composer-inner">
-            <textarea id="chat-input" rows="1" placeholder="Ask a question..."></textarea>
-            <button class="chat-send" id="chat-send" title="Send">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
+          <div class="chat-composer">
+            <div class="chat-hints">
+              ${HINTS.map(h => `<button class="chat-hint" data-q="${esc(h)}">${esc(h)}</button>`).join('')}
+            </div>
+            <div class="chat-composer-inner">
+              <textarea id="chat-input" rows="1" placeholder="Ask a question..."></textarea>
+              <button class="chat-send" id="chat-send" title="Send">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -326,7 +371,6 @@
     var input = $('chat-input');
     var sendBtn = $('chat-send');
     var newBtn = $('chat-new');
-    var sel = $('chat-conv-select');
     if (!input || !sendBtn) return;
 
     // restore active conversation
@@ -335,7 +379,7 @@
       clearThread(false);
       conv.messages.forEach(function (m) { addMessage(m.role, m.text); });
     }
-    renderHistoryBar();
+    renderConvList();
 
     sendBtn.addEventListener('click', function () { send(); });
     input.addEventListener('keydown', function (e) {
@@ -343,7 +387,6 @@
     });
     input.addEventListener('input', autoResize);
     newBtn.addEventListener('click', newChat);
-    sel.addEventListener('change', function () { switchConv(sel.value); });
 
     document.querySelectorAll('.chat-hint').forEach(function (b) {
       b.addEventListener('click', function () { send(b.getAttribute('data-q')); });
