@@ -5,7 +5,7 @@ Final `main` merges all phases.
 
 | Phase | Branch | Status |
 |---|---|---|
-| 1 | phase-1-foundation | In progress |
+| 1 | phase-1-foundation | Done (pushed) |
 | 2 | phase-2-inventory-tools | Pending |
 | 3 | phase-3-sales-forecast | Pending |
 | 4 | phase-4-agent-reorder | Pending |
