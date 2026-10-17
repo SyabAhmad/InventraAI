@@ -1,33 +1,70 @@
-/* InventraAI — Chat agent (local intent engine over real dashboard data).
-   Phase 4 will replace `answer()` with the LLM agent; the UI stays the same. */
+/* InventraAI — Chat view (ChatGPT-style) with persistent conversation history.
+   Local intent engine over real dashboard data. Phase 4 will swap `answer()`
+   for the LLM agent; the UI stays the same. */
 (function () {
   'use strict';
 
-  var $ = function (id) { return document.getElementById(id); };
-  var D = window.PRODUCTS_DATA || null;
-
-  /* ---------- helpers ---------- */
+  function $(id) { return document.getElementById(id); }
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
   function money(n) { return '$' + Number(n).toFixed(2); }
-  function findProduct(q) {
-    if (!D) return null;
-    var t = q.toLowerCase();
-    var m = t.match(/sku[- ]?(\d{3,4})/);
+
+  var D = null;
+  var busy = false;
+
+  /* ---------- conversation storage ---------- */
+  var LS_CONVS = 'inventraai_chat_conversations';
+  var LS_ACTIVE = 'inventraai_chat_active';
+
+  function loadConvs() {
+    try { return JSON.parse(localStorage.getItem(LS_CONVS)) || []; }
+    catch (e) { return []; }
+  }
+  function saveConvs(convs) {
+    localStorage.setItem(LS_CONVS, JSON.stringify(convs));
+  }
+  function getActiveConv() {
+    var convs = loadConvs();
+    var activeId = localStorage.getItem(LS_ACTIVE);
+    for (var i = 0; i < convs.length; i++) {
+      if (convs[i].id === activeId) return convs[i];
+    }
+    return createConv(convs);
+  }
+  function createConv(convs) {
+    var conv = {
+      id: 'c' + Date.now() + Math.floor(Math.random() * 1000),
+      title: 'New conversation',
+      messages: [],
+      ts: Date.now()
+    };
+    convs.unshift(conv);
+    saveConvs(convs);
+    localStorage.setItem(LS_ACTIVE, conv.id);
+    return conv;
+  }
+  function persist(conv) {
+    var convs = loadConvs();
+    for (var i = 0; i < convs.length; i++) {
+      if (convs[i].id === conv.id) { convs[i] = conv; break; }
+    }
+    saveConvs(convs);
+  }
+
+  /* ---------- data helpers ---------- */
+  function findProduct(t) {
+    var m = t.match(/sku[- ]?(\d{3,4})/i);
     if (m) {
       var sku = 'SKU-' + ('0000' + m[1]).slice(-4);
       for (var i = 0; i < D.products.length; i++) {
-        if (D.products[i].sku.toLowerCase() === sku) return D.products[i];
+        if (D.products[i].sku.toLowerCase() === sku.toLowerCase()) return D.products[i];
       }
     }
-    // name match (best contains)
-    var best = null;
     for (var j = 0; j < D.products.length; j++) {
-      var name = D.products[j].name.toLowerCase();
-      if (t.indexOf(name) !== -1) { best = D.products[j]; break; }
+      if (t.indexOf(D.products[j].name.toLowerCase()) !== -1) return D.products[j];
     }
-    return best;
+    return null;
   }
   function statusOf(p) {
     if (p.current_stock === 0) return 'out of stock';
@@ -35,12 +72,11 @@
     return 'healthy';
   }
 
-  /* ---------- intents ---------- */
+  /* ---------- intent engine ---------- */
   function answer(q) {
-    if (!D) return 'Data not loaded. Regenerate the dashboard first.';
+    if (!D) return 'Data not loaded. Run `python scripts/generate_products_html.py` first.';
     var t = q.toLowerCase().trim();
 
-    // stock of a product
     if (/(how many|stock|units|available|inventory of)/.test(t)) {
       var p = findProduct(t);
       if (p) {
@@ -51,7 +87,7 @@
           'Price: ' + money(p.price) + ' · Category: ' + p.category + '\n' +
           'Units sold (all time): ' + (p.total_units_sold || 0);
       }
-      if (/(low|below)/.test(t) && /(stock|items)/.test(t)) {
+      if (/(low|below)/.test(t)) {
         var low = D.low_stock;
         if (!low.length) return 'No products are below their minimum stock level.';
         return low.length + ' products are in low stock:\n' +
@@ -67,8 +103,7 @@
       }
     }
 
-    // summary
-    if (/(summary|overview|how is inventory|total)/.test(t)) {
+    if (/(summary|overview|how is inventory|total value)/.test(t)) {
       var s = D.summary;
       return 'Inventory summary\n' +
         '• Products: ' + s.total_products + '\n' +
@@ -78,7 +113,6 @@
         '• Inventory value: ' + money(s.inventory_value_at_price);
     }
 
-    // top sellers
     if (/(top|best|fast).*(sell|seller|moving)|top sellers/.test(t)) {
       if (!D.top_sellers.length) return 'No sales data yet.';
       return 'Top sellers by units sold:\n' +
@@ -87,7 +121,6 @@
         }).join('\n');
     }
 
-    // slow movers
     if (/(slow|least|worst).*(sell|seller|moving)|slow movers/.test(t)) {
       var prods = D.products.slice().sort(function (a, b) { return (a.total_units_sold || 0) - (b.total_units_sold || 0); });
       return 'Slowest movers by units sold:\n' +
@@ -96,33 +129,28 @@
         }).join('\n');
     }
 
-    // forecast
     if (/(forecast|predict|demand|next (week|days))/.test(t)) {
       var pf = findProduct(t);
       if (pf) {
-        var sold = pf.total_units_sold || 0;
-        var dailyAvg = (sold / 90).toFixed(2);
+        var dailyAvg = (pf.total_units_sold || 0) / 90;
         return 'Demand forecast for ' + pf.name + ' (' + pf.sku + ')\n' +
-          '• Historical daily average (90d): ' + dailyAvg + ' units/day\n' +
-          '• Expected next 7 days: ~' + Math.round(dailyAvg * 7) + ' units\n' +
+          '• Historical daily average (90d): ' + dailyAvg.toFixed(2) + ' units/day\n' +
+          '• Expected next 7 days: ~' + Math.max(1, Math.round(dailyAvg * 7)) + ' units\n' +
           '• Current stock: ' + pf.current_stock + ' units (min ' + pf.min_stock_threshold + ')\n' +
-          'Method: moving average. Full method comparison is on the Sales Summary page.';
+          'Method: moving average.';
       }
       return 'Tell me which product or SKU to forecast, e.g. "forecast demand for SKU-0001".';
     }
 
-    // sales / revenue
     if (/(revenue|sales|sold|earn)/.test(t)) {
       var totalUnits = 0, totalRev = 0;
       D.products.forEach(function (x) { totalUnits += (x.total_units_sold || 0); totalRev += (x.total_revenue || 0); });
       return 'Sales summary (all time)\n' +
         '• Total units sold: ' + totalUnits.toLocaleString() + '\n' +
         '• Total revenue: ' + money(totalRev) + '\n' +
-        '• Products with sales: ' + D.products.filter(function (x) { return x.total_units_sold > 0; }).length + '\n' +
-        'Category revenue leaders are on the Sales Summary page.';
+        '• Products with sales: ' + D.products.filter(function (x) { return x.total_units_sold > 0; }).length;
     }
 
-    // help
     if (/(help|what can you|options)/.test(t)) {
       return 'I can answer questions like:\n' +
         '• "How many units of SKU-0002 are available?"\n' +
@@ -135,15 +163,21 @@
     }
 
     return 'I can help with stock levels, low-stock items, top sellers, revenue, and demand forecasts.\n' +
-      'Try: "How many units of SKU-0002 are available?" or tap a suggestion below.';
+      'Try: "How many units of SKU-0002 are available?"';
   }
 
   /* ---------- rendering ---------- */
-  function addMessage(role, text) {
+  function clearThread(keepEmptyState) {
     var thread = $('chat-thread');
+    thread.innerHTML = keepEmptyState
+      ? '<div class="chat-empty" id="chat-empty"><h2>Inventory Assistant</h2><p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p></div>'
+      : '';
+  }
+
+  function addMessage(role, text) {
     var empty = $('chat-empty');
     if (empty) empty.remove();
-
+    var thread = $('chat-thread');
     var row = document.createElement('div');
     row.className = 'chat-row ' + role;
     var avatar = document.createElement('div');
@@ -156,7 +190,6 @@
     row.appendChild(bubble);
     thread.appendChild(row);
     scrollBottom();
-    return bubble;
   }
 
   function addTyping() {
@@ -174,11 +207,45 @@
   }
   function scrollBottom() {
     var sc = $('chat-scroll');
-    sc.scrollTop = sc.scrollHeight;
+    if (sc) sc.scrollTop = sc.scrollHeight;
+  }
+
+  /* ---------- history bar ---------- */
+  function renderHistoryBar() {
+    var sel = $('chat-conv-select');
+    if (!sel) return;
+    var convs = loadConvs();
+    var activeId = localStorage.getItem(LS_ACTIVE);
+    sel.innerHTML = convs.map(function (c) {
+      return '<option value="' + c.id + '"' + (c.id === activeId ? ' selected' : '') + '>' +
+        esc(c.title) + ' (' + c.messages.length + ')</option>';
+    }).join('');
+  }
+
+  function newChat() {
+    var convs = loadConvs();
+    var conv = createConv(convs);
+    clearThread(true);
+    renderHistoryBar();
+    var input = $('chat-input');
+    if (input) input.focus();
+  }
+
+  function switchConv(id) {
+    localStorage.setItem(LS_ACTIVE, id);
+    var convs = loadConvs();
+    var conv = null;
+    for (var i = 0; i < convs.length; i++) if (convs[i].id === id) conv = convs[i];
+    clearThread(false);
+    if (conv && conv.messages.length) {
+      conv.messages.forEach(function (m) { addMessage(m.role, m.text); });
+    } else {
+      clearThread(true);
+    }
+    renderHistoryBar();
   }
 
   /* ---------- send flow ---------- */
-  var busy = false;
   function send(text) {
     var input = $('chat-input');
     var q = (text !== undefined ? text : input.value).trim();
@@ -186,12 +253,24 @@
     input.value = '';
     autoResize();
     addMessage('user', q);
+
+    var conv = getActiveConv();
+    conv.messages.push({ role: 'user', text: q, ts: Date.now() });
+    if (conv.title === 'New conversation') {
+      conv.title = q.length > 42 ? q.slice(0, 42) + '…' : q;
+    }
+    persist(conv);
+    renderHistoryBar();
+
     busy = true;
     addTyping();
     setTimeout(function () {
       removeTyping();
       var a = answer(q);
       addMessage('agent', a);
+      conv = getActiveConv();
+      conv.messages.push({ role: 'agent', text: a, ts: Date.now() });
+      persist(conv);
       busy = false;
     }, 350);
   }
@@ -202,29 +281,77 @@
     input.style.height = Math.min(input.scrollHeight, 160) + 'px';
   }
 
-  /* ---------- init ---------- */
-  document.addEventListener('DOMContentLoaded', function () {
-    if (!D) {
-      addMessage('agent', 'Data not loaded. Run `python scripts/generate_products_html.py` first.');
-      return;
-    }
-    var badge = $('model-badge');
-    if (badge && D.config && D.config.LLM_MODEL) badge.textContent = D.config.LLM_MODEL;
+  /* ---------- view template ---------- */
+  var HINTS = [
+    'Show inventory summary',
+    'Which products are low in stock?',
+    'Which products are out of stock?',
+    'What are the top sellers?',
+    'Forecast demand for SKU-0001',
+    'How many units of SKU-0002 are available?'
+  ];
 
+  function template() {
+    return `
+      <div class="chat-layout">
+        <div class="chat-historybar">
+          <select id="chat-conv-select" title="Conversation history"></select>
+          <button class="btn-newchat" id="chat-new">+ New chat</button>
+        </div>
+        <div class="chat-scroll" id="chat-scroll">
+          <div class="chat-thread" id="chat-thread">
+            <div class="chat-empty" id="chat-empty">
+              <h2>Inventory Assistant</h2>
+              <p>Ask about stock levels, low-stock items, sales, or demand forecasts.</p>
+            </div>
+          </div>
+        </div>
+        <div class="chat-composer">
+          <div class="chat-hints">
+            ${HINTS.map(h => `<button class="chat-hint" data-q="${esc(h)}">${esc(h)}</button>`).join('')}
+          </div>
+          <div class="chat-composer-inner">
+            <textarea id="chat-input" rows="1" placeholder="Ask a question..."></textarea>
+            <button class="chat-send" id="chat-send" title="Send">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  /* ---------- mount (called by app.js when chat view opens) ---------- */
+  function mount() {
+    D = window.PRODUCTS_DATA || null;
     var input = $('chat-input');
     var sendBtn = $('chat-send');
+    var newBtn = $('chat-new');
+    var sel = $('chat-conv-select');
+    if (!input || !sendBtn) return;
+
+    // restore active conversation
+    var conv = getActiveConv();
+    if (conv.messages.length) {
+      clearThread(false);
+      conv.messages.forEach(function (m) { addMessage(m.role, m.text); });
+    }
+    renderHistoryBar();
 
     sendBtn.addEventListener('click', function () { send(); });
     input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
     input.addEventListener('input', autoResize);
+    newBtn.addEventListener('click', newChat);
+    sel.addEventListener('change', function () { switchConv(sel.value); });
 
     document.querySelectorAll('.chat-hint').forEach(function (b) {
       b.addEventListener('click', function () { send(b.getAttribute('data-q')); });
     });
-  });
+
+    if (!D) addMessage('agent', 'Data not loaded. Run `python scripts/generate_products_html.py` first.');
+    input.focus();
+  }
+
+  window.ChatUI = { mount: mount, template: template, send: send };
 })();

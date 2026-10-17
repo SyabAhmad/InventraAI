@@ -13,7 +13,7 @@
   const TITLES = {
     overview: 'Dashboard', products: 'Products', lowstock: 'Low Stock',
     outofstock: 'Out of Stock', topsellers: 'Top Sellers',
-    sales: 'Sales Summary', settings: 'Settings',
+    sales: 'Sales Summary', settings: 'Settings', chat: 'Chat',
   };
 
   function card(label, value, hint, color) {
@@ -49,7 +49,7 @@
             <option value="low">Low stock only</option>
           </select>
         </div>
-        <div class="alert-list" id="low-alerts"></div>
+        <div class="alert-list collapsible-body" id="low-alerts"></div>
       </div>
       <div class="section">
         <h2>Top Sellers</h2>
@@ -57,6 +57,15 @@
       </div>`;
     renderAlerts(D.low_stock, D.out_of_stock);
     renderTopSellers(D.top_sellers);
+    const btn = $('attn-btn');
+    if (btn) {
+      btn.onclick = () => {
+        const body = $('low-alerts');
+        const hidden = body.style.display === 'none';
+        body.style.display = hidden ? '' : 'none';
+        btn.textContent = hidden ? 'Hide List' : 'Show List';
+      };
+    }
   }
 
   let _attnItems = [];
@@ -86,8 +95,12 @@
         </div>`;
       }).join('');
     };
-    if (input) input.addEventListener('input', apply);
-    if (filterSel) filterSel.addEventListener('change', apply);
+    if (input) {
+      input.addEventListener('input', apply);
+    }
+    if (filterSel) {
+      filterSel.addEventListener('change', apply);
+    }
     apply();
   }
 
@@ -223,11 +236,18 @@
       </div>`;
   }
 
-  const VIEWS = { overview: renderOverview, products: renderProducts, lowstock: renderLowStock, outofstock: renderOutOfStock, topsellers: renderTopSellers, sales: renderSales, settings: renderSettings };
+  function renderChat() {
+    $('content').classList.add('chat-mode');
+    $('content').innerHTML = window.ChatUI ? window.ChatUI.template() : '<div class="empty">Chat module not loaded.</div>';
+    if (window.ChatUI) window.ChatUI.mount();
+  }
+
+  const VIEWS = { overview: renderOverview, products: renderProducts, lowstock: renderLowStock, outofstock: renderOutOfStock, topsellers: renderTopSellers, sales: renderSales, settings: renderSettings, chat: renderChat };
 
   function switchView(name) {
     const D = window.PRODUCTS_DATA;
     $('view-title').textContent = TITLES[name] || 'Dashboard';
+    $('content').classList.toggle('chat-mode', name === 'chat');
     document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === name));
     (VIEWS[name] || renderOverview)(D);
   }
