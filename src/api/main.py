@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import benchmark, chat, dashboard
-from src.config import API_HOST, API_PORT, PROJECT_ROOT
+from src.config import API_HOST, API_PORT, LLM_BASE_URL, LLM_MODEL, PROJECT_ROOT
 
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
@@ -45,6 +45,23 @@ app.include_router(benchmark.router)
 def health_alias() -> dict:
     """Backwards-friendly alias for monitors; real endpoint remains /api/health."""
     return {"status": "ok", "note": "use /api/health"}
+
+
+@app.get("/v1/models")
+def models_alias() -> dict:
+    """Minimal OpenAI-compatible model list for monitors/clients probing this port."""
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": LLM_MODEL,
+                "object": "model",
+                "owned_by": "inventraai",
+                "provider": "ollama",
+                "base_url": LLM_BASE_URL,
+            }
+        ],
+    }
 
 
 @app.middleware("http")

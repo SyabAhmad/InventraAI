@@ -43,7 +43,7 @@ Five tags from `.env → LLM_BENCHMARK_MODELS` (verified live at
 ollama.com/library on 2026-11-05 — API names below, CLI uses `-cloud`):
 
 ```ini
-LLM_BENCHMARK_MODELS=gpt-oss:20b,gemma4:31b,nemotron-3-nano:30b,qwen3.5:35b,deepseek-v4.1-flash
+LLM_BENCHMARK_MODELS=gpt-oss:20b,gemma4:31b,nemotron-3-nano:30b,beam,gemma4:cloud
 ```
 
 **Verification verdict:**
@@ -53,8 +53,10 @@ LLM_BENCHMARK_MODELS=gpt-oss:20b,gemma4:31b,nemotron-3-nano:30b,qwen3.5:35b,deep
 | `gemma4:31b-cloud` | ✅ exists (`gemma4:31b-cloud`) | Use API name `gemma4:31b` |
 | `nemotron-3-nano:30b-cloud` | ✅ exists | Use API name `nemotron-3-nano:30b` |
 | `qwen3.5:35b-cloud` | ❌ **404 — does not exist** | `qwen3.5:35b` is local-only (22 GB); true cloud Qwen 3.5 is `qwen3.5:cloud` (397B) |
-| `clef:27b-cloud` | ✅ exists but **decision-only** | Uses `/v1/systemone`, NOT chat/tool-calling — moved to separate `clef` check. Replaced in chat list by `deepseek-v4.1-flash` (cloud chat: tools+thinking, 1M ctx) |
-| `deepseek-v4.1-flash` | ✅ exists (cloud-only) | Use API name `deepseek-v4.1-flash`, CLI `deepseek-v4.1-flash:cloud` |
+| `clef:27b-cloud` | ✅ exists but **decision-only** | Uses `/v1/systemone`, NOT chat/tool-calling — moved to separate `clef` check. |
+| `deepseek-v4.1-flash` | ❌ exists but **not available free** | Account API returned 402 (usage credits required) |
+| `beam:cloud` | ✅ exists, marked **free** | Cloud tools+thinking replacement |
+| `gemma4:cloud` | ✅ exists (Gemma 4 cloud endpoint) | Smaller Gemma cloud replacement |
 
 Clef is still usable, but correctly: `python scripts/check_clef.py` or
 `POST /api/benchmark/clef/check` (System One). It is **not** in the
