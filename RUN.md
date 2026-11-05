@@ -1,6 +1,6 @@
 # Run the Project — from scratch
 
-Complete, copy-paste instructions for the **full build** (Phase 5: dashboard + API + agent chat).
+Complete, copy-paste instructions for the **full build** (Phase 6: dashboard + API + benchmarking + agent chat).
 Works on Windows (PowerShell) and macOS/Linux (bash).
 
 ---
@@ -21,11 +21,10 @@ Works on Windows (PowerShell) and macOS/Linux (bash).
 ```bash
 git clone https://github.com/SyabAhmad/InventraAI.git
 cd InventraAI
-git checkout phase-5-dashboard
+git checkout phase-6-benchmark
 ```
 
-> Use `phase-5-dashboard` for the full app. Earlier phase branches only contain the
-> parts built up to that phase.
+> Use `phase-6-benchmark` for the full app + benchmarking. Earlier branches contain earlier phases.
 
 ---
 
@@ -34,9 +33,11 @@ git checkout phase-5-dashboard
 **Windows (PowerShell):**
 
 ```powershell
-python -m venv .venv
+py -3.9 -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
+
+> The repository is tested with Python 3.9 on Windows. If `python` resolves to another version, use `py -3.9`.
 
 If activation is blocked by the execution policy, run this once for the current
 terminal, then activate again:
@@ -97,22 +98,21 @@ The old `OLLAMA_*` variable names still work (they are aliases).
 
 ## 5. Create and seed the database
 
+Generate the current large demo dataset:
+
 ```bash
-python scripts/init_db.py
+python scripts/init_db.py --reset --products 1000 --days 365
 ```
 
-Expected output:
+Expected output (exact sales count may vary with format/version):
 
 ```text
-{'status': 'seeded', 'products': 100, 'inventory': 100, 'sales': 8745}
+{'status': 'seeded', 'products': 1000, 'inventory': 1000, 'sales': 355923}
 DB path: ...\data\inventory.db
 ```
 
-To wipe and re-seed from zero:
-
-```bash
-python scripts/init_db.py --reset --products 100 --days 90
-```
+> The database is not stored in GitHub. Every teammate must generate it locally.
+> For the smaller original demo instead, use `python scripts/init_db.py --reset --products 100 --days 90`.
 
 ---
 
@@ -136,9 +136,10 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 |---|---|
 | http://127.0.0.1:8000 | Dashboard + chat UI |
 | http://127.0.0.1:8000/docs | Interactive API docs |
-| http://127.0.0.1:8000/api/health | Health check (should return `{"status":"ok",...}`) |
+| http://127.0.0.1:8000/api/health | Real health check |
+| http://127.0.0.1:8000/health | Compatibility alias |
 
-> `GET /health` returns 404 on purpose — the endpoint is `/api/health`.
+> `GET /health` is kept for monitors. The preferred endpoint is `/api/health`.
 
 ---
 
