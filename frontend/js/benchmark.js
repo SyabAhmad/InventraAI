@@ -30,6 +30,14 @@
         <div class="bench-progress"><div id="bench-bar" class="bench-bar"></div></div>
         <div id="bench-live" class="sub" style="margin-top:6px"></div>
       </div>
+      <div class="section" id="bench-charts" style="display:none">
+        <h3>Charts <span class="sub">(built from live results — print-ready)</span></h3>
+        <div class="bench-chart-grid">
+          <div class="card chart-card"><div class="chart-box"><canvas id="bench-chart-success"></canvas></div><div class="sub" id="bench-chart-success-note">Task success & tool accuracy per model</div></div>
+          <div class="card chart-card"><div class="chart-box"><canvas id="bench-chart-latency"></canvas></div><div class="sub" id="bench-chart-latency-note">Median latency per model (lower = better)</div></div>
+          <div class="card chart-card"><div class="chart-box"><canvas id="bench-chart-steps"></canvas></div><div class="sub" id="bench-chart-steps-note">Avg LLM steps per model (fewer = cheaper)</div></div>
+        </div>
+      </div>
       <div class="section" id="bench-summary" style="display:none"></div>
       <div class="section" id="bench-table-wrap" style="display:none">
         <h3>Live results <span class="sub">(newest last — scrolls down as it runs)</span></h3>
@@ -77,6 +85,7 @@
         <label class="sub">Repeats <input type="number" id="bench-repeats" min="1" max="5" value="${cfg.repeats_default || 1}" style="width:56px;margin-left:4px"></label>
         <button id="bench-select-all" class="btn-ghost">Select all</button>
         <button id="bench-smoke" class="btn-ghost">Smoke only (p01–p05)</button>
+        <a id="bench-export" href="#" class="btn-ghost btn-download" style="display:none" download title="Download the Excel report with charts">⬇ Download Excel</a>
         <span id="bench-msg" class="sub"></span>
       </div>
       <p class="sub" style="margin-top:6px">Note: 20 prompts × 5 cloud models takes a while (each prompt = 1 LLM call + tools, incl. network). You can watch every row land live below. <strong>Baseline vs Optimized:</strong> run the same models + prompts twice (once per mode), then compare accuracy vs latency — that's the cost-efficiency evidence (Roadmap T17).</p>`;
@@ -110,7 +119,10 @@
 
     msg.textContent = `Starting ${mode} · ${models.length} model(s) × ${promptIds.length} prompt(s) × ${repeats} repeat(s)…`;
     $('bench-start').disabled = true;
+    var exportA = $('bench-export');
+    if (exportA) { exportA.style.display = 'none'; }
     $('bench-progress').style.display = '';
+    $('bench-charts').style.display = 'none';
     $('bench-table-wrap').style.display = '';
     $('bench-summary').style.display = 'none';
     $('bench-rows').innerHTML = '';
@@ -148,16 +160,87 @@
         $('bench-live').textContent = job.current_model ? 'Model: ' + job.current_model : '';
         renderRows(job);
         renderSummary(job);
+        renderCharts(job);
+        var exportA = $('bench-export');
+        if (exportA && job.results && job.results.length) {
+          exportA.style.display = '';
+          exportA.href = apiBase() + '/api/benchmark/export/' + encodeURIComponent(job.id);
+        }
         if (job.status === 'done' || job.status === 'failed') {
           stopPoll();
           var btn = $('bench-start');
           if (btn) btn.disabled = false;
+          if (exportA) exportA.href = apiBase() + '/api/benchmark/export/' + encodeURIComponent(job.id);
           if (job.file) $('bench-live').textContent = 'Saved to ' + job.file;
         }
       })
       .catch(function (err) {
         $('bench-live').textContent = 'Poll error: ' + err.message;
       });
+  }
+
+  var chartCharts = [];
+  function destroyCharts() {
+    chartCharts.forEach(function (c) { try { c.destroy(); } catch (e) { /* ignore */ } });
+    chartCharts = [];
+  }
+
+  function renderCharts(job) {
+    var summary = job.summary || {};
+    var models = Object.keys(summary);
+    var block = $('bench-charts');
+    if (!block) return;
+    if (!models.length || typeof Chart === 'undefined') { block.style.display = 'none'; return; }
+    block.style.display = '';
+    destroyCharts();
+    var labels = models;
+    var success = models.map(function (m) { return summary[m].success_rate || 0; });
+    var accuracy = models.map(function (m) { return summary[m].tool_accuracy || 0; });
+    var medianLat = models.map(function (m) { return summary[m].median_latency_ms || summary[m].avg_latency_ms || 0; });
+    var steps = models.map(function (m) { return summary[m].avg_steps || 0; });
+    var tick = '#6b6b6b';
+    var grid = 'rgba(227,221,209,.6)';
+    var opts = function (yTitle) {
+      return {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: tick, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: tick }, grid: { color: grid } },
+          y: { beginAtZero: true, title: { display: true, text: yTitle || '' }, ticks: { color: tick }, grid: { color: grid } },
+        },
+      };
+    };
+    var mk = function (id, cfg) {
+      var el = $(id);
+      if (el) chartCharts.push(new Chart(el.getContext('2d'), cfg));
+    };
+    mk('bench-chart-success', {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Task success %', data: success, backgroundColor: 'rgba(58,125,68,.7)', borderColor: '#3a7d44', borderWidth: 1 },
+          { label: 'Tool accuracy %', data: accuracy, backgroundColor: 'rgba(139,111,71,.7)', borderColor: '#8b6f47', borderWidth: 1 },
+        ],
+      },
+      options: opts('%'),
+    });
+    mk('bench-chart-latency', {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Median latency (ms)', data: medianLat, backgroundColor: 'rgba(192,57,43,.65)', borderColor: '#c0392b', borderWidth: 1 }],
+      },
+      options: opts('ms'),
+    });
+    mk('bench-chart-steps', {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Avg steps', data: steps, backgroundColor: 'rgba(184,134,11,.65)', borderColor: '#b8860b', borderWidth: 1 }],
+      },
+      options: opts('steps'),
+    });
   }
 
   function renderRows(job) {

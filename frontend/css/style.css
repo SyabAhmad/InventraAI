@@ -592,6 +592,10 @@ tr:hover { background: var(--hover); }
 .bench-warn { background: rgba(184,134,11,.15); color: var(--yellow); }
 .bench-fail { background: rgba(192,57,43,.15); color: var(--red); }
 #bench-table-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 2px; padding: 8px; background: var(--card); }
+.bench-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
+.bench-chart-grid .chart-box { height: 220px; }
+.btn-download { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text) !important; }
+.btn-download:hover { background: var(--hover); border-color: var(--accent); color: var(--accent) !important; }
 
 /* ================= Responsive ================= */
 @media (max-width: 860px) {

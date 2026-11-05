@@ -12,6 +12,9 @@ fastapi==0.115.0
 uvicorn==0.30.0
 httpx==0.28.1
 
+# Reports (benchmark Excel export with embedded charts)
+openpyxl==3.1.5
+
 # Agentic (LangGraph + LangChain, OpenAI-compatible client for Ollama Cloud)
 langgraph==0.2.39
 langchain==0.3.7
