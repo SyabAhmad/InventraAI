@@ -31,7 +31,8 @@
         <div id="bench-live" class="sub" style="margin-top:6px"></div>
       </div>
       <div class="section" id="bench-charts" style="display:none">
-        <h3>Charts <span class="sub">(built from live results — print-ready)</span></h3>
+        <h3>Charts <span class="sub">(built after all runs finish — print-ready for viva)</span></h3>
+        <p class="sub" id="bench-charts-note">Charts will appear here when processing is complete.</p>
         <div class="bench-chart-grid">
           <div class="card chart-card"><div class="chart-box"><canvas id="bench-chart-success"></canvas></div><div class="sub" id="bench-chart-success-note">Task success & tool accuracy per model</div></div>
           <div class="card chart-card"><div class="chart-box"><canvas id="bench-chart-latency"></canvas></div><div class="sub" id="bench-chart-latency-note">Median latency per model (lower = better)</div></div>
@@ -119,8 +120,11 @@
 
     msg.textContent = `Starting ${mode} · ${models.length} model(s) × ${promptIds.length} prompt(s) × ${repeats} repeat(s)…`;
     $('bench-start').disabled = true;
+    destroyCharts();
     var exportA = $('bench-export');
     if (exportA) { exportA.style.display = 'none'; }
+    var chartNote = $('bench-charts-note');
+    if (chartNote) chartNote.textContent = 'Charts will appear here when processing is complete.';
     $('bench-progress').style.display = '';
     $('bench-charts').style.display = 'none';
     $('bench-table-wrap').style.display = '';
@@ -160,17 +164,20 @@
         $('bench-live').textContent = job.current_model ? 'Model: ' + job.current_model : '';
         renderRows(job);
         renderSummary(job);
-        renderCharts(job);
         var exportA = $('bench-export');
         if (exportA && job.results && job.results.length) {
           exportA.style.display = '';
           exportA.href = apiBase() + '/api/benchmark/export/' + encodeURIComponent(job.id);
         }
-        if (job.status === 'done' || job.status === 'failed') {
+        var finished = job.status === 'done' || job.status === 'failed';
+        if (finished) {
           stopPoll();
           var btn = $('bench-start');
           if (btn) btn.disabled = false;
           if (exportA) exportA.href = apiBase() + '/api/benchmark/export/' + encodeURIComponent(job.id);
+          renderCharts(job);
+          var chartNote = $('bench-charts-note');
+          if (chartNote) chartNote.textContent = 'All runs finished — charts built from the final evidence.';
           if (job.file) $('bench-live').textContent = 'Saved to ' + job.file;
         }
       })
