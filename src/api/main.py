@@ -41,6 +41,12 @@ app.include_router(chat.router)
 app.include_router(benchmark.router)
 
 
+@app.get("/health")
+def health_alias() -> dict:
+    """Backwards-friendly alias for monitors; real endpoint remains /api/health."""
+    return {"status": "ok", "note": "use /api/health"}
+
+
 @app.middleware("http")
 async def no_cache_frontend(request, call_next):
     """Always serve fresh UI assets so a normal reload picks up new JS.
