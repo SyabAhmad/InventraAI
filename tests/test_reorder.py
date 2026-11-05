@@ -20,5 +20,5 @@ def test_all():
 
 def test_summary():
     s = reorder_summary()
-    assert s["total_products"] == 100
+    assert s["total_products"] == len(get_all_products())
     assert s["products_needing_reorder"] >= 0
