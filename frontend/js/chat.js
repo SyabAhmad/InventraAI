@@ -187,7 +187,7 @@
   function clearThread(keepEmptyState) {
     var thread = $('chat-thread');
     thread.innerHTML = keepEmptyState
-      ? '<div class="chat-empty" id="chat-empty"><h2>MenteE</h2><p>Ask about stock, sales, or forecasts — or request a chart.</p></div>'
+      ? '<div class="chat-empty" id="chat-empty"><h2>Arzo</h2><p>Ask about stock, sales, or forecasts — or request a chart.</p></div>'
       : '';
     updateHints();
   }
@@ -209,10 +209,10 @@
     row.className = 'chat-row ' + role;
     var avatar = document.createElement('div');
     avatar.className = 'chat-avatar';
-    avatar.textContent = role === 'user' ? 'You' : 'M';
+    avatar.textContent = role === 'user' ? 'You' : 'A';
     var bubble = document.createElement('div');
     bubble.className = 'chat-bubble' + (meta.error ? ' error' : '');
-    var html = '<span class="who">' + (role === 'user' ? 'You' : 'MenteE') + '</span>';
+    var html = '<span class="who">' + (role === 'user' ? 'You' : 'Arzo') + '</span>';
     if (role === 'agent') {
       html += '<div class="md">' + mdToHtml(text) + '</div>';
     } else {
@@ -324,7 +324,7 @@
     var row = document.createElement('div');
     row.className = 'chat-row agent';
     row.id = 'typing-row';
-    row.innerHTML = '<div class="chat-avatar">M</div><div class="chat-bubble"><span class="who">MenteE</span><span class="chat-typing"><span></span><span></span><span></span></span></div>';
+    row.innerHTML = '<div class="chat-avatar">A</div><div class="chat-bubble"><span class="who">Arzo</span><span class="chat-typing"><span></span><span></span><span></span></span></div>';
     thread.appendChild(row);
     scrollBottom();
   }
@@ -557,7 +557,7 @@
           <div class="chat-scroll" id="chat-scroll">
             <div class="chat-thread" id="chat-thread">
               <div class="chat-empty" id="chat-empty">
-                <h2>MenteE</h2>
+                <h2>Arzo</h2>
                 <p>Ask about stock, sales, or forecasts — or request a chart.</p>
               </div>
             </div>

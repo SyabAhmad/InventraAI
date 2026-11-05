@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.api.routes import chat, dashboard
+from src.api.routes import benchmark, chat, dashboard
 from src.config import API_HOST, API_PORT, PROJECT_ROOT
 
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
@@ -38,6 +38,7 @@ app.add_middleware(
 
 app.include_router(dashboard.router)
 app.include_router(chat.router)
+app.include_router(benchmark.router)
 
 
 @app.middleware("http")

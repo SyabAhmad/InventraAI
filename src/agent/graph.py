@@ -13,7 +13,13 @@ from src.tools.agent_tools import AGENT_TOOLS
 CHART_TOOL_NAMES = {"make_bar_chart", "make_line_chart", "make_pie_chart"}
 MAX_HISTORY_TURNS = 12
 
-SYSTEM_PROMPT = """You are MenteE, an inventory management assistant for an e-commerce store.
+# --- FYP PDF §5: Baseline vs Optimized (paired runs) ---
+# BASELINE = existing prompt/context and call pattern (original system prompt).
+# OPTIMIZED = shorter relevant context + clearer structure + deterministic
+# checks where model calls are unnecessary. Same tools, same data, same
+# frozen cases and success rules — only the prompt changes, so the
+# comparison is fair (see docs/PHASE6.md).
+BASELINE_PROMPT = """You are Arzo, an inventory management assistant for an e-commerce store (InventraAI by Arzo Naveed).
 
 Rules:
 1. ALWAYS answer from tool results. Never invent stock numbers, prices, or forecasts.
@@ -42,13 +48,41 @@ Rules:
    a close match using search_products.
 """
 
+OPTIMIZED_PROMPT = """You are Arzo, inventory assistant (InventraAI by Arzo Naveed).
 
-def create_inventory_agent():
-    """Create the ReAct agent bound to all inventory/sales/forecast/reorder tools."""
+RULES (optimized):
+- Answer ONLY from tool results. Never invent numbers. Never call the model when a deterministic tool already gives the answer — just use the tool data.
+- Call the single tool that matches the question. Do not call extra tools.
+- Restock advice: call recommend_reorder, quote its reason/urgency/qty.
+- Charts: fetch data first (product_sales_data / daily_sales_data / top_sellers / revenue_by_category / forecast_demand), then make_bar_chart / make_line_chart / make_pie_chart with EXACT values. Reply: chart title only.
+- Follow-ups: resolve "that/above/it" from history. Not found: say so in one line, suggest search_products.
+- Output: lead with the answer/numbers, ≤6 bullets, top 3-5 items only, no fluff.
+"""
+
+# Backwards-compatible alias (chat route / tests / CLI use SYSTEM_PROMPT).
+SYSTEM_PROMPT = BASELINE_PROMPT
+
+PROMPT_BY_MODE: dict[str, str] = {
+    "baseline": BASELINE_PROMPT,
+    "optimized": OPTIMIZED_PROMPT,
+}
+
+VALID_MODES = ("baseline", "optimized")
+
+
+def create_inventory_agent(model_name: str | None = None, mode: str = "baseline"):
+    """Create the ReAct agent bound to all inventory/sales/forecast/reorder tools.
+
+    Args:
+        model_name: benchmark override (defaults to LLM_MODEL from .env).
+        mode: "baseline" (original prompt) or "optimized" (shorter prompt).
+              Unknown modes fall back to baseline so old callers keep working.
+    """
+    prompt = PROMPT_BY_MODE.get(mode, PROMPT_BY_MODE["baseline"])
     return create_react_agent(
-        model=get_chat_model(),
+        model=get_chat_model(model_name),
         tools=AGENT_TOOLS,
-        prompt=SYSTEM_PROMPT,
+        prompt=prompt,
     )
 
 

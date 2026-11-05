@@ -44,7 +44,7 @@ def test_tools_return_real_data():
 def test_system_prompt_grounded_rules():
     assert "Never invent" in SYSTEM_PROMPT
     assert "tool" in SYSTEM_PROMPT.lower()
-    assert "MenteE" in SYSTEM_PROMPT
+    assert "Arzo" in SYSTEM_PROMPT
     assert "product_sales_data" in SYSTEM_PROMPT
 
 

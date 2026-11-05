@@ -83,7 +83,7 @@ real error** — it never fabricates an answer.
   suggested quantity, and the reasoning behind each recommendation.
 - **Chat** — live mode posts to `/api/chat` and renders answers as Markdown,
   with small "used: tool" chips showing which tools the agent called.
-  The assistant is named **MenteE**. Snapshot mode keeps the local intent
+  The assistant is named **Arzo**. Snapshot mode keeps the local intent
   engine so the static page still works.
 - **Conversation memory** — the client sends the last 12 turns with each
   question, so follow-ups like "chart the above book" resolve against what was

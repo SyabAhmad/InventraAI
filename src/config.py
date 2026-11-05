@@ -1,7 +1,16 @@
-"""Central configuration loaded from environment variables / .env."""
+"""Central configuration loaded from environment variables / .env.
+
+Production notes (FYP Roadmap §5):
+- Every benchmark run records the exact runtime settings below
+  (provider, base URL, model tags, temperature) so results are
+  reproducible and comparable between Baseline and Optimized runs.
+- No secret (API key) is ever logged or saved into benchmark files.
+"""
 from __future__ import annotations
 
 import os
+import platform
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -74,10 +83,36 @@ AGENT_MAX_ITERATIONS = _get_int("AGENT_MAX_ITERATIONS", 8)
 AGENT_TEMPERATURE = _get_float("AGENT_TEMPERATURE", 0.2)
 
 # --- Benchmarking ---
+# FYP PDF §5: five candidate models, frozen cases, paired Baseline vs
+# Optimized runs, and full evidence logging (date, model tag, hardware,
+# settings, case ID, output, measured values, errors).
 BENCHMARK_REPEATS = _get_int("BENCHMARK_REPEATS", 3)
 BENCHMARK_OUTPUT_DIR = _get("BENCHMARK_OUTPUT_DIR", "benchmark_results")
 if not os.path.isabs(BENCHMARK_OUTPUT_DIR):
     BENCHMARK_OUTPUT_DIR = str(PROJECT_ROOT / BENCHMARK_OUTPUT_DIR)
+# Clef is decision-only (System One), NOT a chat LLM. It is kept separate
+# from the 5 chat candidates above; see src/benchmark/clef.py.
+CLEF_MODEL = _get("CLEF_MODEL", _get("OLLAMA_CLEF_MODEL", "clef:27b"))
+
+
+def build_run_metadata() -> dict:
+    """Hardware + runtime snapshot recorded in every benchmark file.
+
+    This is the 'machine + settings' evidence the PDF asks for.
+    The API key is deliberately excluded.
+    """
+    return {
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "processor": platform.processor() or "unknown",
+        "provider": LLM_PROVIDER,
+        "base_url": LLM_BASE_URL,
+        "default_model": LLM_MODEL,
+        "temperature": AGENT_TEMPERATURE,
+        "database_path": DATABASE_PATH,
+        "forecast_horizon_days": FORECAST_HORIZON_DAYS,
+    }
+
 
 # --- API ---
 API_HOST = _get("API_HOST", "127.0.0.1")

@@ -9,6 +9,7 @@ Welcome! This folder holds plain-English documentation for InventraAI.
 - **[Phase 3 — Sales & Forecasting](PHASE3.md)** — sales analysis and demand forecasting.
 - **[Phase 4 — Agent & Reorder](PHASE4.md)** — the LangGraph agent and reorder engine.
 - **[Phase 5 — Dashboard & API](PHASE5.md)** — FastAPI backend, live dashboard, agent chat over HTTP.
+- **[Phase 6 — Benchmarking & Optimization](PHASE6.md)** — 5 cloud models × 20 frozen cases × Baseline/Optimized, live dashboard + evidence files (FYP Roadmap §5).
 
 ## How to read these docs
 

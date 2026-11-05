@@ -1,12 +1,15 @@
 # InventraAI — AI-Based Inventory Management Agent for E-commerce
 
-> **Phase 5 — Dashboard & API.** This branch contains the full build through
-> Phase 5: foundation, inventory tools, sales/forecasting, the LangGraph agent,
-> and the FastAPI backend serving the live dashboard. Benchmarking (Phase 6)
-> lives on its own branch; everything merges into `main`.
+> **Phase 6 — Benchmarking & Optimization (complete).** This tree contains the
+> full build through Phase 6: foundation, inventory tools, sales/forecasting,
+> the LangGraph agent (Baseline + Optimized prompts), the FastAPI backend,
+> the live dashboard, and the Benchmarking page + CLI that runs
+> **5 Ollama Cloud models × 20 frozen cases × Baseline/Optimized** with
+> full evidence files in `benchmark_results/` (see `docs/PHASE6.md`).
 
-Final Year Project (FYP 2) module owned by **Arzo Naveed**.
+Final Year Project (FYP 2, 5 Oct – 27 Nov 2026) module owned by **Arzo Naveed**.
 Part of: *Cost-Efficient Optimization of Open-Source LLM Agents for System-Level Tasks*.
+Supervisor: Dr Imran Ali Qureshi.
 
 InventraAI is an intelligent inventory assistant for e-commerce: it monitors stock,
 detects low/out-of-stock items, analyzes sales, forecasts demand, recommends reorders,
@@ -40,11 +43,11 @@ calls and explains results using real data.
 - **Sales analysis** — fast/slow sellers, revenue by category, trends over time.
 - **Demand forecasting** — moving average / exponential smoothing / linear trend with MAE/MAPE.
 - **Smart reorder recommendations** — reorder point, safety stock, recommended quantities.
-- **Natural-language interaction** — the **MenteE** assistant powered by Ollama Cloud (model configurable via `.env`).
-- **Charts in chat** — MenteE fetches data with a tool, builds bar/line/pie charts with a chart tool, rendered inline in the chat.
+- **Natural-language interaction** — the **Arzo** assistant powered by Ollama Cloud (model configurable via `.env`).
+- **Charts in chat** — Arzo fetches data with a tool, builds bar/line/pie charts with a chart tool, rendered inline in the chat.
 - **Conversation memory** — follow-ups like "chart that book" work because the last 12 turns are sent with each question.
 - **Web dashboard** — FastAPI backend + HTML/JS (Chart.js) frontend.
-- **Model benchmarking** — compare multiple Ollama models on accuracy, success rate, latency, tokens, cost.
+- **Model benchmarking** — compare **5 Ollama Cloud models** (`gpt-oss:20b-cloud`, `gemma4:31b-cloud`, `nemotron-3-nano:30b-cloud`, `clef:27b-cloud`, `qwen3.5:35b-cloud`) on **20 frozen prompts × Baseline/Optimized**, reporting task success, tool accuracy, forecast MAE/MAPE, median/p95 latency, steps, and a token proxy — with live row-by-row progress in the **Benchmarking** page and full evidence JSON per run. See `docs/PHASE6.md`.
 
 ---
 

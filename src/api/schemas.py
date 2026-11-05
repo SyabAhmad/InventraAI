@@ -1,6 +1,8 @@
 """Request/response models for the InventraAI API."""
 from __future__ import annotations
 
+from typing import List, Optional, Union
+
 from pydantic import BaseModel, Field
 
 
@@ -32,3 +34,35 @@ class HealthResponse(BaseModel):
     model: str
     database_ready: bool
     live_mode: bool = True
+
+
+class BenchmarkPrompt(BaseModel):
+    id: str
+    question: str
+    category: str
+    expected_tools: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class BenchmarkConfig(BaseModel):
+    models: list[str] = Field(default_factory=list)
+    default_model: str = ""
+    provider: str = ""
+    base_url: str = ""
+    prompts: list[BenchmarkPrompt] = Field(default_factory=list)
+    repeats_default: int = 1
+    modes: list[str] = Field(default_factory=lambda: ["baseline", "optimized"], description="Paired run modes (FYP PDF §5)")
+    metadata: dict = Field(default_factory=dict, description="Hardware + settings snapshot for evidence")
+
+
+class BenchmarkRunRequest(BaseModel):
+    # Optional[...] instead of `| None` for Python 3.9 + pydantic compat
+    models: Optional[List[str]] = Field(default=None, description="Model names from .env LLM_BENCHMARK_MODELS; defaults to all")
+    prompt_ids: Optional[List[str]] = Field(default=None, description="Prompt ids to run; defaults to all 20")
+    repeats: int = Field(default=1, ge=1, le=5)
+    mode: str = Field(default="baseline", pattern="^(baseline|optimized)$", description="baseline = original prompt; optimized = shorter context")
+
+
+class ClefCheckRequest(BaseModel):
+    state: Union[str, dict, list] = Field(description="Text/JSON to judge (e.g. a reorder case)")
+    questions: dict = Field(description="{name: {type: choice|noul|score, instructions, criteria}}")

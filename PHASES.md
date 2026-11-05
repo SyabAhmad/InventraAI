@@ -10,7 +10,7 @@ Final `main` merges all phases.
 | 3 | phase-3-sales-forecast | Done (pushed) |
 | 4 | phase-4-agent-reorder | Done (pushed) |
 | 5 | phase-5-dashboard | Done (pushed) |
-| 6 | phase-6-benchmark | Pending |
+| 6 | phase-6-benchmark | Done (in this tree — dashboard page + CLI + evidence + tests) |
 
 ## Phase 1 - Foundation
 Repo structure, configuration via .env, SQLite schema, dummy data (100 products, 90 days sales),
@@ -29,4 +29,8 @@ LangGraph agent with tool-calling, reorder recommendation engine, natural-langua
 FastAPI backend + HTML/JS/Chart.js dashboard: stock, alerts, sales, forecasts, reorder recs, chat.
 
 ## Phase 6 - Benchmarking & Optimization
-Multi-model benchmark harness, baseline vs optimized runs, metrics logging, tests, docs.
+Multi-model benchmark harness (5 Ollama Cloud candidates × 20 frozen cases ×
+Baseline vs Optimized), live dashboard page with row-by-row progress, evidence
+files in `benchmark_results/` (date, model tag, hardware, settings, case ID,
+output, median/p95 latency, steps, token proxy, forecast MAE/MAPE, errors),
+CLI twin + offline tests. See `docs/PHASE6.md` (Roadmap §5, T15–T18).

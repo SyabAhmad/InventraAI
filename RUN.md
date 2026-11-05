@@ -142,7 +142,7 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 
 ---
 
-## 8. Use the chat (MenteE)
+## 8. Use the chat (Arzo)
 
 Open the chat panel and try:
 

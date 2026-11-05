@@ -19,6 +19,7 @@
     overview: 'Dashboard', products: 'Products', lowstock: 'Low Stock',
     outofstock: 'Out of Stock', topsellers: 'Top Sellers',
     sales: 'Sales Summary', reorder: 'Reorder Advice', settings: 'Settings', chat: 'Chat',
+    benchmark: 'Benchmarking',
   };
 
   /* ================= API access ================= */
@@ -455,7 +456,12 @@
     if (window.ChatUI) window.ChatUI.mount();
   }
 
-  const VIEWS = { overview: renderOverview, products: renderProducts, lowstock: renderLowStock, outofstock: renderOutOfStock, topsellers: renderTopSellers, sales: renderSales, reorder: renderReorder, settings: renderSettings, chat: renderChat };
+  function renderBenchmark() {
+    if (window.BenchmarkUI) window.BenchmarkUI.render();
+    else $('content').innerHTML = '<div class="empty">Benchmark module not loaded.</div>';
+  }
+
+  const VIEWS = { overview: renderOverview, products: renderProducts, lowstock: renderLowStock, outofstock: renderOutOfStock, topsellers: renderTopSellers, sales: renderSales, reorder: renderReorder, settings: renderSettings, chat: renderChat, benchmark: renderBenchmark };
 
   function switchView(name) {
     const D = window.PRODUCTS_DATA;
