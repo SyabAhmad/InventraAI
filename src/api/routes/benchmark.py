@@ -15,7 +15,7 @@ from fastapi.responses import Response
 
 from src.api.schemas import BenchmarkConfig, BenchmarkPrompt, BenchmarkRunRequest, ClefCheckRequest
 from src.benchmark.clef import run_clef_decision
-from src.benchmark.dataset import BENCHMARK_PROMPTS
+from src.benchmark.dataset import BENCHMARK_PROMPTS, BENCHMARK_SUITES, DEFAULT_SUITE
 from src.benchmark.export import build_xlsx
 from src.benchmark.runner import get_job, latest_saved_result, start_benchmark
 from src.config import BENCHMARK_REPEATS, LLM_BASE_URL, LLM_BENCHMARK_MODELS, LLM_MODEL, LLM_PROVIDER, build_run_metadata
@@ -25,14 +25,27 @@ router = APIRouter(prefix="/api", tags=["benchmark"])
 
 @router.get("/benchmark/config", response_model=BenchmarkConfig)
 def benchmark_config() -> BenchmarkConfig:
+    active = BENCHMARK_SUITES[DEFAULT_SUITE]
+    suites = {
+        key: {
+            "name": item["name"],
+            "description": item["description"],
+            "prompt_count": len(item["prompts"]),
+            "prompts": [BenchmarkPrompt(**p).model_dump() for p in item["prompts"]],
+        }
+        for key, item in BENCHMARK_SUITES.items()
+    }
     return BenchmarkConfig(
         models=LLM_BENCHMARK_MODELS,
         default_model=LLM_MODEL,
         provider=LLM_PROVIDER,
         base_url=LLM_BASE_URL,
-        prompts=[BenchmarkPrompt(**p) for p in BENCHMARK_PROMPTS],
+        prompts=[BenchmarkPrompt(**p) for p in active["prompts"]],
         repeats_default=BENCHMARK_REPEATS,
         metadata=build_run_metadata(),
+        modes=["baseline", "optimized"],
+        default_suite=DEFAULT_SUITE,
+        suites=suites,
     )
 
 
@@ -41,7 +54,7 @@ def run_benchmark(payload: BenchmarkRunRequest) -> dict:
     selected = [m.strip() for m in (payload.models or LLM_BENCHMARK_MODELS) if m.strip()]
     if not selected:
         raise HTTPException(status_code=400, detail="Select at least one model (check .env LLM_BENCHMARK_MODELS).")
-    job = start_benchmark(models=selected, prompt_ids=payload.prompt_ids, repeats=payload.repeats, mode=payload.mode)
+    job = start_benchmark(models=selected, prompt_ids=payload.prompt_ids, repeats=payload.repeats, mode=payload.mode, suite=payload.suite)
     return {"job_id": job["id"], "status": job["status"], "models": selected, "mode": job["mode"], "total": "computed on first poll"}
 
 

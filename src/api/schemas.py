@@ -41,6 +41,7 @@ class BenchmarkPrompt(BaseModel):
     question: str
     category: str
     expected_tools: list[str] = Field(default_factory=list)
+    expected_any: List[List[str]] = Field(default_factory=list, description="Optional alternative tool groups; each group needs ≥1 call")
     notes: str = ""
 
 
@@ -53,6 +54,8 @@ class BenchmarkConfig(BaseModel):
     repeats_default: int = 1
     modes: list[str] = Field(default_factory=lambda: ["baseline", "optimized"], description="Paired run modes (FYP PDF §5)")
     metadata: dict = Field(default_factory=dict, description="Hardware + settings snapshot for evidence")
+    default_suite: str = "v2"
+    suites: dict = Field(default_factory=dict, description="Available suites; key -> name/description/prompt_count")
 
 
 class BenchmarkRunRequest(BaseModel):
@@ -61,6 +64,7 @@ class BenchmarkRunRequest(BaseModel):
     prompt_ids: Optional[List[str]] = Field(default=None, description="Prompt ids to run; defaults to all 20")
     repeats: int = Field(default=1, ge=1, le=5)
     mode: str = Field(default="baseline", pattern="^(baseline|optimized)$", description="baseline = original prompt; optimized = shorter context")
+    suite: str = Field(default="v2", pattern="^(v1|v2)$", description="v1 = legacy router; v2 = complex inventory decisions")
 
 
 class ClefCheckRequest(BaseModel):

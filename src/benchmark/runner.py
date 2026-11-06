@@ -32,10 +32,11 @@ import statistics
 import threading
 import time
 from datetime import datetime, timezone
-from pathlib import Path
+from typing import Any
 
 from src.agent.graph import VALID_MODES, ask_agent, create_inventory_agent
-from src.benchmark.dataset import BENCHMARK_PROMPTS
+from src.agent.tracing import BenchmarkTrace
+from src.benchmark.dataset import BENCHMARK_PROMPTS, BENCHMARK_PROMPTS_V2, BENCHMARK_SUITES, DEFAULT_SUITE
 from src.config import BENCHMARK_OUTPUT_DIR, LLM_BENCHMARK_MODELS, build_run_metadata
 
 _lock = threading.Lock()
@@ -43,20 +44,21 @@ _jobs: dict[str, dict] = {}
 
 # Prompts whose quality is judged by forecast error (deterministic Python,
 # not LLM opinion). See forecast_service.validate_forecast().
-_FORECAST_IDS = {"p10", "p11", "p12"}
+_FORECAST_IDS = {"p10", "p11", "p12", "c07", "c08", "c19"}
 
 
 # ---------------------------------------------------------------- helpers ---
-def _score_tools(expected: list[str], called: list[str]) -> bool:
-    """True when every expected tool was called (subset check, any order).
-
-    p20 (unknown SKU) is special: the agent must TRY a lookup
-    (get_stock or search_products) and must NOT hallucinate stock.
-    """
-    if not expected:
-        return True
+def _score_tools(expected: list[str], called: list[str], expected_any: list[list[str]] | None = None) -> bool:
+    """True when every mandatory tool is called and at least one tool per
+    optional alternative group is called."""
     called_set = set(called)
-    return all(t in called_set for t in expected)
+    if expected:
+        if not all(t in called_set for t in expected):
+            return False
+    for group in expected_any or []:
+        if group and not any(t in called_set for t in group):
+            return False
+    return True
 
 
 def _estimate_tokens(text: str) -> int:
@@ -149,7 +151,7 @@ def _aggregate(results: list[dict]) -> dict:
 
 
 # ------------------------------------------------------------------ engine --
-def run_single(agent, prompt: dict, model: str, mode: str = "baseline") -> dict:
+def run_single(agent, prompt: dict, model: str, mode: str = "baseline", trace: Any = None) -> dict:
     """Run ONE prompt against ONE model. Never raises (records error instead).
 
     Each row = one evidence record: case ID, model, mode, measured values,
@@ -157,12 +159,12 @@ def run_single(agent, prompt: dict, model: str, mode: str = "baseline") -> dict:
     """
     started = time.perf_counter()
     try:
-        result = ask_agent(agent, prompt["question"])
+        result = ask_agent(agent, prompt["question"], trace=trace)
         latency_ms = round((time.perf_counter() - started) * 1000, 1)
         answer = (result.get("answer") or "").strip()
         tools = result.get("tools") or []
         ok = bool(answer)
-        tool_ok = _score_tools(prompt.get("expected_tools") or [], tools)
+        tool_ok = _score_tools(prompt.get("expected_tools") or [], tools, prompt.get("expected_any") or [])
         # p20 guardrail: must not invent stock for a non-existent SKU.
         if prompt["id"] == "p20" and ok:
             lowered = answer.lower()
@@ -186,6 +188,7 @@ def run_single(agent, prompt: dict, model: str, mode: str = "baseline") -> dict:
             "tool_accuracy": tool_ok,
             "tools_called": tools,
             "expected_tools": prompt.get("expected_tools") or [],
+            "expected_any": prompt.get("expected_any") or [],
             "steps": result.get("steps", 0),
             "latency_ms": latency_ms,
             "tokens_proxy": _estimate_tokens(prompt["question"] + " " + answer),
@@ -206,6 +209,7 @@ def run_single(agent, prompt: dict, model: str, mode: str = "baseline") -> dict:
             "tool_accuracy": False,
             "tools_called": [],
             "expected_tools": prompt.get("expected_tools") or [],
+            "expected_any": prompt.get("expected_any") or [],
             "steps": 0,
             "latency_ms": latency_ms,
             "tokens_proxy": _estimate_tokens(prompt["question"]),
@@ -213,6 +217,12 @@ def run_single(agent, prompt: dict, model: str, mode: str = "baseline") -> dict:
             "answer_preview": "",
             "error": str(exc),
         }
+
+
+def _resolve_suite_prompts(suite: str | None) -> tuple[list[dict], str]:
+    """Return (prompts, resolved_suite) with safe fallback to default suite."""
+    chosen = suite if suite in BENCHMARK_SUITES else DEFAULT_SUITE
+    return BENCHMARK_SUITES[chosen]["prompts"], chosen
 
 
 def _save_run(job: dict) -> Path:
@@ -224,6 +234,7 @@ def _save_run(job: dict) -> Path:
     payload = {
         "id": job["id"],
         "mode": job.get("mode", "baseline"),
+        "suite": job.get("suite", DEFAULT_SUITE),
         "started_at": job.get("started_at", ""),
         "finished_at": datetime.now(timezone.utc).isoformat(),
         "metadata": build_run_metadata(),
@@ -239,15 +250,17 @@ def _save_run(job: dict) -> Path:
 
 
 def run_benchmark_job(job_id: str, models: list[str], prompt_ids: list[str] | None = None,
-                      repeats: int = 1, mode: str = "baseline") -> None:
+                      repeats: int = 1, mode: str = "baseline", suite: str | None = None) -> None:
     """Background thread body. Updates the job dict for live polling."""
     mode = mode if mode in VALID_MODES else "baseline"
+    suite_prompts, resolved_suite = _resolve_suite_prompts(suite)
     with _lock:
         job = _jobs[job_id]
         job["status"] = "running"
         job["mode"] = mode
+        job["suite"] = resolved_suite
 
-    prompts = [p for p in BENCHMARK_PROMPTS if (not prompt_ids or p["id"] in prompt_ids)]
+    prompts = [p for p in suite_prompts if (not prompt_ids or p["id"] in prompt_ids)]
     total_runs = len(models) * len(prompts) * max(1, repeats)
     with _lock:
         job["total"] = total_runs
@@ -264,9 +277,15 @@ def run_benchmark_job(job_id: str, models: list[str], prompt_ids: list[str] | No
             for _rep in range(1, max(1, repeats) + 1):
                 for prompt in prompts:
                     with _lock:
-                        job["current_prompt"] = f"[{mode}] [{model}] {prompt['id']}: {prompt['question']}"
-                    row = run_single(agent, prompt, model, mode=mode)
+                        job["current_prompt"] = f"[{resolved_suite}/{mode}] [{model}] {prompt['id']}: {prompt['question']}"
+                    trace_events: list[dict] = []
+                    trace = BenchmarkTrace(model=model, prompt_id=prompt["id"], shared_events=trace_events)
+                    with _lock:
+                        job["trace"] = trace_events
+                    row = run_single(agent, prompt, model, mode=mode, trace=trace)
                     row["repeat"] = _rep
+                    row["suite"] = resolved_suite
+                    row["trace"] = list(trace_events)
                     done += 1
                     with _lock:
                         results.append(row)
@@ -291,11 +310,12 @@ def run_benchmark_job(job_id: str, models: list[str], prompt_ids: list[str] | No
 
 
 def start_benchmark(models: list[str] | None = None, prompt_ids: list[str] | None = None,
-                    repeats: int = 1, mode: str = "baseline") -> dict:
+                    repeats: int = 1, mode: str = "baseline", suite: str | None = None) -> dict:
     """Validate inputs, create a job, and launch it in a daemon thread."""
     import uuid
 
     mode = mode if mode in VALID_MODES else "baseline"
+    suite_prompts, resolved_suite = _resolve_suite_prompts(suite)
     selected = models or LLM_BENCHMARK_MODELS
     job_id = uuid.uuid4().hex[:12]
     with _lock:
@@ -303,8 +323,9 @@ def start_benchmark(models: list[str] | None = None, prompt_ids: list[str] | Non
             "id": job_id,
             "status": "queued",
             "mode": mode,
+            "suite": resolved_suite,
             "models": selected,
-            "prompt_ids": prompt_ids or [p["id"] for p in BENCHMARK_PROMPTS],
+            "prompt_ids": prompt_ids or [p["id"] for p in suite_prompts],
             "repeats": max(1, repeats),
             "total": 0,
             "done": 0,
@@ -318,7 +339,7 @@ def start_benchmark(models: list[str] | None = None, prompt_ids: list[str] | Non
             "started_at": datetime.now(timezone.utc).isoformat(),
             "metadata": build_run_metadata(),
         }
-    t = threading.Thread(target=run_benchmark_job, args=(job_id, selected, prompt_ids, max(1, repeats), mode), daemon=True)
+    t = threading.Thread(target=run_benchmark_job, args=(job_id, selected, prompt_ids, max(1, repeats), mode, resolved_suite), daemon=True)
     t.start()
     return _jobs[job_id]
 

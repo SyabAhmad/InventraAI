@@ -576,6 +576,7 @@ tr:hover { background: var(--hover); }
 
 /* ============ Benchmarking page ============ */
 .bench-models, .bench-prompts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.bench-suite-select { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 2px; font-size: 13px; max-width: 720px; width: 100%; }
 .bench-check { background: var(--card); border: 1px solid var(--border); border-radius: 2px; padding: 8px 10px; font-size: 13px; display: flex; gap: 8px; align-items: flex-start; }
 .bench-check code { font-size: 12px; }
 .bench-prompt { align-items: flex-start; }
@@ -591,7 +592,15 @@ tr:hover { background: var(--hover); }
 .bench-pass { background: rgba(58,125,68,.15); color: var(--green); }
 .bench-warn { background: rgba(184,134,11,.15); color: var(--yellow); }
 .bench-fail { background: rgba(192,57,43,.15); color: var(--red); }
-#bench-table-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 2px; padding: 8px; background: var(--card); }
+#bench-trace-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 2px; padding: 8px; background: var(--card); }
+.bench-trace-status { font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+.bench-trace { min-height: 120px; max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 2px; padding: 8px; background: var(--card2); font-size: 12px; }
+.bench-trace-item { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.bench-trace-item:last-child { border-bottom: none; }
+.bench-trace-head { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.bench-trace-data { color: var(--muted); margin-top: 2px; font-family: ui-monospace, Consolas, monospace; word-break: break-word; }
+.bench-trace-data.bench-fail { color: var(--red); }
+.bench-trace-empty { color: var(--muted); font-style: italic; }
 .bench-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
 .bench-chart-grid .chart-box { height: 220px; }
 .btn-download { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text) !important; }

@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.benchmark.dataset import BENCHMARK_PROMPTS
+from src.benchmark.dataset import BENCHMARK_PROMPTS, BENCHMARK_PROMPTS_V2, BENCHMARK_SUITES, DEFAULT_SUITE
 from src.benchmark.runner import _aggregate, _estimate_tokens, _percentile, _score_tools
 
 
@@ -14,6 +14,26 @@ def test_dataset_has_frozen_twenty_prompts():
     assert ids == [f"p{i:02d}" for i in range(1, 21)]
     for p in BENCHMARK_PROMPTS:
         assert p["question"] and p["category"] and p["expected_tools"]
+
+
+def test_dataset_v2_has_twenty_complex_prompts():
+    assert len(BENCHMARK_PROMPTS_V2) == 20
+    ids = [p["id"] for p in BENCHMARK_PROMPTS_V2]
+    assert ids == [f"c{i:02d}" for i in range(1, 21)]
+    assert DEFAULT_SUITE == "v2"
+    for p in BENCHMARK_PROMPTS_V2:
+        assert p["question"] and p["category"]
+        # V2 is deliberately multi-step: not a shallow single-tool fixture.
+        assert len(p.get("expected_tools", [])) >= 2 or bool(p.get("expected_any"))
+    for suite in BENCHMARK_SUITES.values():
+        assert len(suite["prompts"]) == 20
+
+
+def test_score_tools_with_alternative_groups():
+    assert _score_tools([], ["search_products"], [["search_products", "get_stock"]]) is True
+    assert _score_tools([], ["sales_summary"], [["search_products", "get_stock"]]) is False
+    assert _score_tools(["inventory_summary"], ["inventory_summary"], [["get_stock", "search_products"]]) is False
+    assert _score_tools(["inventory_summary"], ["inventory_summary", "search_products"], [["get_stock", "search_products"]]) is True
 
 
 def test_score_tools_subset_check():

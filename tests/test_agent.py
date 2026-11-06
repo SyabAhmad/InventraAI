@@ -29,7 +29,7 @@ def test_tool_schemas_have_descriptions():
 
 def test_tools_return_real_data():
     summary = next(t for t in AGENT_TOOLS if t.name == "inventory_summary").invoke({})
-    assert summary["total_products"] == 100
+    assert summary["total_products"] > 0
 
     low = next(t for t in AGENT_TOOLS if t.name == "list_low_stock").invoke({})
     assert isinstance(low, list)

@@ -98,7 +98,7 @@ def _history_messages(history: list[dict] | None) -> list:
     return messages
 
 
-def ask_agent(agent: Any, question: str, history: list[dict] | None = None) -> dict:
+def ask_agent(agent: Any, question: str, history: list[dict] | None = None, trace: Any = None) -> dict:
     """Run one question through the agent.
 
     `history` holds earlier turns of the current conversation (oldest first),
@@ -108,11 +108,21 @@ def ask_agent(agent: Any, question: str, history: list[dict] | None = None) -> d
     `charts` contains chart specs produced by the chart tools (rendered by the
     chat UI). Raises on provider/network errors so callers can surface them
     without faking data.
+
+    `trace` (optional) is a BenchmarkTrace collector; when supplied, real
+    LangChain callback events are appended to it.
     """
+    from src.agent.tracing import BenchmarkTraceCallback
+
     messages = _history_messages(history) + [HumanMessage(content=question)]
+    config: dict[str, Any] = {"recursion_limit": 25}
+    if trace is not None:
+        config["callbacks"] = [BenchmarkTraceCallback(trace)]
+    if trace is not None:
+        trace.emit("request", f"Prompt sent to agent ({len(question)} chars)", question_preview=question[:200])
     result = agent.invoke(
         {"messages": messages},
-        config={"recursion_limit": 25},
+        config=config,
     )
     messages = result.get("messages", [])
     answer = messages[-1].content if messages else ""
@@ -134,5 +144,9 @@ def ask_agent(agent: Any, question: str, history: list[dict] | None = None) -> d
                         charts.append(spec)
                 except (ValueError, TypeError):
                     pass
+
+    if trace is not None:
+        trace.emit("final", f"Answer ready ({len(answer)} chars)",
+                   answer_preview=answer[:300], tools=tool_names, steps=len(messages))
 
     return {"answer": answer, "steps": len(messages), "tools": tool_names, "charts": charts}

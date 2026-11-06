@@ -73,17 +73,28 @@ logged per run via `build_run_metadata()`).
 
 ### 2 — Repeatable cases (frozen)
 
-`dataset.py` covers every workstream the PDF asks for:
 
-- Inventory: p01 summary, p02 low-stock, p03 out-of-stock, p04 stock lookup
-- Search: p05 category search, p20 unknown SKU (hallucination guardrail)
-- Sales: p06 summary, p07 top sellers, p08 slow movers, p09 revenue by category
-- Forecast: p10 demand, p11 validation, p12 method comparison
-- Reorder: p13 single, p14 all, p15 summary
-- Chart: p16 bar, p17 line, p18 pie, p19 per-product trend
+Two frozen suites are shipped in `dataset.py`:
 
-`p20` is the anti-hallucination case: the answer must say "not found" —
-inventing stock is a quality failure even if a tool ran.
+- **v1** — legacy 20 simple one-tool prompts (`p01..p20`) for regression compares.
+- **v2** — active 20 multi-step inventory-decision prompts (`c01..c20`) with mixed stock/sales/
+  forecast/reorder/chart evidence, recommendations, and anti-hallucination guardrails. The dashboard
+  and CLI default to v2; v1 remains selectable for regression comparison.
+
+Both suites are immutable once runs are recorded. Do not retune a prompt mid-comparison.
+
+`BENCHMARK_SUITES` exposes both:
+```ini
+v1 → v1 — Basic router (legacy)
+v2 → v2 — Complex inventory decisions
+```
+
+Cases include cross-functional decision evidence, e.g.:
+- c01 board-ready inventory reset with stock + replenishment + sales evidence
+- c02 ranked low-stock procurement actions
+- c07 restock SKU-0001 using stock, forecast, MAE/MAPE and recommendation
+- c12 chart + concentration risk
+- c20 missing product must return exactly `XYZ99999 not found` (no hallucination)
 
 ### 3 — Baseline vs Optimized (T17)
 
@@ -140,10 +151,11 @@ Never contains the API key. This file *is* the viva evidence.
 uvicorn src.api.main:app --host 127.0.0.1 --port 8000
 # → http://127.0.0.1:8000 → Benchmarking → pick models/prompts/mode → Start
 
-# 2. CLI (same engine)
+# 2. CLI (same engine) — v2 complex suite is the default
 python scripts/run_benchmark.py --mode baseline --smoke
 python scripts/run_benchmark.py --mode optimized
-python scripts/run_benchmark.py --models gemma4:31b-cloud --prompts p01,p13,p16 --repeats 3 --mode baseline
+python scripts/run_benchmark.py --suite v1 --mode baseline --smoke
+python scripts/run_benchmark.py --models gemma4:31b --prompts c01,c07,c12 --repeats 3 --mode baseline
 
 # 3. Offline tests (no network)
 python -m pytest tests/test_benchmark.py tests/test_agent.py -q
