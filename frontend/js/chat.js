@@ -1,4 +1,4 @@
-/* InventraAI — Chat view (ChatGPT-style) with persistent conversation history.
+/* InventraAI - Chat view (ChatGPT-style) with persistent conversation history.
    Live mode: questions go to the FastAPI backend and run through the LangGraph
    agent (real tool-calling over live SQLite data).
    Snapshot mode (backend offline): answers come from the local intent engine
@@ -29,6 +29,9 @@
 
   var D = null;
   var busy = false;
+  var chatBenchMode = false;
+  var chatBenchModels = [];
+  var chatBenchPoll = null;
 
   /* ---------- conversation storage ---------- */
   var LS_CONVS = 'inventraai_chat_conversations';
@@ -101,7 +104,7 @@
           'Current stock: ' + p.current_stock + ' units\n' +
           'Minimum threshold: ' + p.min_stock_threshold + '\n' +
           'Status: ' + statusOf(p) + '\n' +
-          'Price: ' + money(p.price) + ' · Category: ' + p.category + '\n' +
+          'Price: ' + money(p.price) + ' . Category: ' + p.category + '\n' +
           'Units sold (all time): ' + (p.total_units_sold || 0);
       }
       if (/(low|below)/.test(t)) {
@@ -109,32 +112,32 @@
         if (!low.length) return 'No products are below their minimum stock level.';
         return low.length + ' products are in low stock:\n' +
           low.slice(0, 10).map(function (x) {
-            return '• ' + x.name + ' (' + x.sku + ') — ' + x.current_stock + ' units (min ' + x.min_stock_threshold + ')';
-          }).join('\n') + (low.length > 10 ? '\n… and ' + (low.length - 10) + ' more' : '');
+            return '* ' + x.name + ' (' + x.sku + ') - ' + x.current_stock + ' units (min ' + x.min_stock_threshold + ')';
+          }).join('\n') + (low.length > 10 ? '\n... and ' + (low.length - 10) + ' more' : '');
       }
       if (/(out of stock|out-of-stock|zero)/.test(t)) {
         var out = D.out_of_stock;
         if (!out.length) return 'No products are out of stock.';
         return out.length + ' products are out of stock:\n' +
-          out.map(function (x) { return '• ' + x.name + ' (' + x.sku + ')'; }).join('\n');
+          out.map(function (x) { return '* ' + x.name + ' (' + x.sku + ')'; }).join('\n');
       }
     }
 
     if (/(summary|overview|how is inventory|total value)/.test(t)) {
       var s = D.summary;
       return 'Inventory summary\n' +
-        '• Products: ' + s.total_products + '\n' +
-        '• Total stock units: ' + s.total_stock_units.toLocaleString() + '\n' +
-        '• Low stock: ' + s.low_stock_count + '\n' +
-        '• Out of stock: ' + s.out_of_stock_count + '\n' +
-        '• Inventory value: ' + money(s.inventory_value_at_price);
+        '* Products: ' + s.total_products + '\n' +
+        '* Total stock units: ' + s.total_stock_units.toLocaleString() + '\n' +
+        '* Low stock: ' + s.low_stock_count + '\n' +
+        '* Out of stock: ' + s.out_of_stock_count + '\n' +
+        '* Inventory value: ' + money(s.inventory_value_at_price);
     }
 
     if (/(top|best|fast).*(sell|seller|moving)|top sellers/.test(t)) {
       if (!D.top_sellers.length) return 'No sales data yet.';
       return 'Top sellers by units sold:\n' +
         D.top_sellers.slice(0, 8).map(function (x, i) {
-          return (i + 1) + '. ' + x.name + ' (' + x.category + ') — ' + x.total_units + ' units, ' + money(x.total_revenue);
+          return (i + 1) + '. ' + x.name + ' (' + x.category + ') - ' + x.total_units + ' units, ' + money(x.total_revenue);
         }).join('\n');
     }
 
@@ -142,7 +145,7 @@
       var prods = D.products.slice().sort(function (a, b) { return (a.total_units_sold || 0) - (b.total_units_sold || 0); });
       return 'Slowest movers by units sold:\n' +
         prods.slice(0, 8).map(function (x, i) {
-          return (i + 1) + '. ' + x.name + ' (' + x.sku + ') — ' + (x.total_units_sold || 0) + ' units';
+          return (i + 1) + '. ' + x.name + ' (' + x.sku + ') - ' + (x.total_units_sold || 0) + ' units';
         }).join('\n');
     }
 
@@ -151,9 +154,9 @@
       if (pf) {
         var dailyAvg = (pf.total_units_sold || 0) / 90;
         return 'Demand forecast for ' + pf.name + ' (' + pf.sku + ')\n' +
-          '• Historical daily average (90d): ' + dailyAvg.toFixed(2) + ' units/day\n' +
-          '• Expected next 7 days: ~' + Math.max(1, Math.round(dailyAvg * 7)) + ' units\n' +
-          '• Current stock: ' + pf.current_stock + ' units (min ' + pf.min_stock_threshold + ')\n' +
+          '* Historical daily average (90d): ' + dailyAvg.toFixed(2) + ' units/day\n' +
+          '* Expected next 7 days: ~' + Math.max(1, Math.round(dailyAvg * 7)) + ' units\n' +
+          '* Current stock: ' + pf.current_stock + ' units (min ' + pf.min_stock_threshold + ')\n' +
           'Method: moving average.';
       }
       return 'Tell me which product or SKU to forecast, e.g. "forecast demand for SKU-0001".';
@@ -163,20 +166,20 @@
       var totalUnits = 0, totalRev = 0;
       D.products.forEach(function (x) { totalUnits += (x.total_units_sold || 0); totalRev += (x.total_revenue || 0); });
       return 'Sales summary (all time)\n' +
-        '• Total units sold: ' + totalUnits.toLocaleString() + '\n' +
-        '• Total revenue: ' + money(totalRev) + '\n' +
-        '• Products with sales: ' + D.products.filter(function (x) { return x.total_units_sold > 0; }).length;
+        '* Total units sold: ' + totalUnits.toLocaleString() + '\n' +
+        '* Total revenue: ' + money(totalRev) + '\n' +
+        '* Products with sales: ' + D.products.filter(function (x) { return x.total_units_sold > 0; }).length;
     }
 
     if (/(help|what can you|options)/.test(t)) {
       return 'I can answer questions like:\n' +
-        '• "How many units of SKU-0002 are available?"\n' +
-        '• "Which products are low in stock?"\n' +
-        '• "Which products are out of stock?"\n' +
-        '• "Show inventory summary"\n' +
-        '• "What are the top sellers?"\n' +
-        '• "Forecast demand for SKU-0001"\n' +
-        '• "Show total revenue"';
+        '* "How many units of SKU-0002 are available?"\n' +
+        '* "Which products are low in stock?"\n' +
+        '* "Which products are out of stock?"\n' +
+        '* "Show inventory summary"\n' +
+        '* "What are the top sellers?"\n' +
+        '* "Forecast demand for SKU-0001"\n' +
+        '* "Show total revenue"';
     }
 
     return 'I can help with stock levels, low-stock items, top sellers, revenue, and demand forecasts.\n' +
@@ -187,7 +190,7 @@
   function clearThread(keepEmptyState) {
     var thread = $('chat-thread');
     thread.innerHTML = keepEmptyState
-      ? '<div class="chat-empty" id="chat-empty"><h2>Arzo</h2><p>Ask about stock, sales, or forecasts — or request a chart.</p></div>'
+      ? '<div class="chat-empty" id="chat-empty"><h2>Arzo</h2><p>Ask about stock, sales, or forecasts - or request a chart.</p></div>'
       : '';
     updateHints();
   }
@@ -351,8 +354,8 @@
       var when = new Date(c.ts).toLocaleDateString();
       return '<div class="conv-item' + (c.id === activeId ? ' active' : '') + '" data-id="' + c.id + '" title="' + esc(c.title) + '">' +
         '<div class="t">' + esc(c.title) + '</div>' +
-        '<div class="m">' + c.messages.length + ' messages · ' + when + '</div>' +
-        '<button class="conv-del" data-del="' + c.id + '" title="Delete conversation">×</button>' +
+        '<div class="m">' + c.messages.length + ' messages . ' + when + '</div>' +
+        '<button class="conv-del" data-del="' + c.id + '" title="Delete conversation">x</button>' +
         '</div>';
     }).join('');
 
@@ -382,7 +385,7 @@
     overlay.innerHTML =
       '<div class="modal confirm-modal">' +
         '<div class="modal-head"><h2>' + esc(title) + '</h2>' +
-        '<button class="modal-close" title="Cancel" data-act="cancel">×</button></div>' +
+        '<button class="modal-close" title="Cancel" data-act="cancel">x</button></div>' +
         '<p class="confirm-text">' + esc(message) + '</p>' +
         '<div class="confirm-actions">' +
           '<button class="btn-ghost" data-act="cancel">Cancel</button>' +
@@ -474,11 +477,143 @@
     });
   }
 
-  /* ---------- send flow ---------- */
+  /* ---------- benchmark mode (chat) ---------- */
+  function loadBenchModels() {
+    if (window.APP_MODE !== 'live') return;
+    window.appFetchJson('/api/benchmark/config', 8000).then(function (cfg) {
+      chatBenchModels = (cfg && cfg.models) || [];
+      var el = $('chat-bench-models');
+      if (!el) return;
+      el.innerHTML = chatBenchModels.map(function (m, i) {
+        return `<label class="chat-bench-model"><input type="checkbox" class="chat-bench-model-check" value="${esc(m)}" ${i < 2 ? 'checked' : ''}> <code>${esc(m)}</code></label>`;
+      }).join('');
+    }).catch(function () { /* ignore */ });
+  }
+
+  function toggleBenchMode() {
+    chatBenchMode = !chatBenchMode;
+    var panel = $('chat-bench-panel');
+    if (panel) panel.style.display = chatBenchMode ? '' : 'none';
+    var btn = $('chat-bench-toggle');
+    if (btn) btn.classList.toggle('active', chatBenchMode);
+  }
+
+  function selectedBenchModels() {
+    return Array.from(document.querySelectorAll('.chat-bench-model-check:checked')).map(function (c) { return c.value; });
+  }
+
+  function sendBenchmark(q) {
+    var models = selectedBenchModels();
+    if (!models.length) { addMessage('agent', 'Select at least one model in the benchmark panel first.', { error: true }); return; }
+    if (window.APP_MODE !== 'live') { addMessage('agent', 'Benchmark mode needs the live backend.', { error: true }); return; }
+    addMessage('user', q);
+    var conv = getActiveConv();
+    conv.messages.push({ role: 'user', text: q, ts: Date.now() });
+    if (conv.title === 'New conversation') conv.title = q.length > 42 ? q.slice(0, 42) + '...' : q;
+    persist(conv);
+    renderConvList();
+    busy = true;
+    addTyping();
+    fetch(window.appApiBase() + '/api/benchmark/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ models: models, custom_questions: [q], repeats: 1, mode: 'baseline', suite: 'v2' })
+    }).then(function (r) {
+      if (!r.ok) return r.json().then(function (j) { throw new Error(j.detail || ('HTTP ' + r.status)); });
+      return r.json();
+    }).then(function (j) {
+      pollBenchJob(j.job_id, q);
+    }).catch(function (err) {
+      removeTyping();
+      addMessage('agent', 'Benchmark error: ' + err.message, { error: true });
+      busy = false;
+    });
+  }
+
+  function pollBenchJob(jobId, q) {
+    if (chatBenchPoll) clearInterval(chatBenchPoll);
+    chatBenchPoll = setInterval(function () {
+      fetch(window.appApiBase() + '/api/benchmark/jobs/' + encodeURIComponent(jobId))
+        .then(function (r) { return r.json(); })
+        .then(function (job) {
+          if (job.status === 'done' || job.status === 'failed') {
+            clearInterval(chatBenchPoll);
+            chatBenchPoll = null;
+            removeTyping();
+            renderBenchResult(job, q);
+            busy = false;
+          }
+        })
+        .catch(function (err) {
+          clearInterval(chatBenchPoll);
+          chatBenchPoll = null;
+          removeTyping();
+          addMessage('agent', 'Benchmark poll error: ' + err.message, { error: true });
+          busy = false;
+        });
+    }, 1500);
+  }
+
+  function renderBenchResult(job, q) {
+    var rows = job.results || [];
+    var byModel = {};
+    rows.forEach(function (r) { byModel[r.model] = r; });
+    var models = Object.keys(byModel);
+    var container = $('chat-thread');
+    var row = document.createElement('div');
+    row.className = 'chat-row agent';
+    var avatar = document.createElement('div');
+    avatar.className = 'chat-avatar';
+    avatar.textContent = 'B';
+    var bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    var html = '<span class="who">Benchmark</span><div class="md"><p><strong>Question:</strong> ' + esc(q) + '</p>';
+    html += '<p><strong>Models:</strong> ' + models.map(function (m) { return esc(m); }).join(', ') + '</p>';
+    html += '<p><strong>Download:</strong> <a href="' + esc(window.appApiBase() + '/api/benchmark/export/' + job.id) + '" download>Excel report with charts</a></p></div>';
+    bubble.innerHTML = html;
+    var cards = document.createElement('div');
+    cards.className = 'chat-bench-cards';
+    models.forEach(function (m) {
+      var r = byModel[m];
+      var card = document.createElement('div');
+      card.className = 'chat-bench-card';
+      var ans = esc(r.answer_preview || r.error || '(no answer)');
+      card.innerHTML = '<div class="chat-bench-model-name"><code>' + esc(m) + '</code> <span class="sub">' + esc(r.status) + ' . ' + r.latency_ms + ' ms . ' + r.steps + ' steps</span></div><div class="md">' + ans.replace(/\n/g, '<br>') + '</div>';
+      cards.appendChild(card);
+    });
+    bubble.appendChild(cards);
+    var chartWrap = document.createElement('div');
+    chartWrap.className = 'chat-bench-chart-wrap';
+    var canvas = document.createElement('canvas');
+    canvas.id = 'chat-bench-chart-' + job.id;
+    chartWrap.appendChild(canvas);
+    bubble.appendChild(chartWrap);
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    container.appendChild(row);
+    scrollBottom();
+    if (typeof Chart !== 'undefined') {
+      var latLabels = models;
+      var latVals = models.map(function (m) { return byModel[m].latency_ms || 0; });
+      try {
+        new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: { labels: latLabels, datasets: [{ label: 'Latency (ms)', data: latVals, backgroundColor: 'rgba(139,111,71,.7)', borderColor: '#8b6f47', borderWidth: 1 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 } } }, y: { beginAtZero: true } } }
+        });
+      } catch (e) { /* ignore */ }
+    }
+    var conv2 = getActiveConv();
+    conv2.messages.push({ role: 'agent', text: 'Benchmark: ' + models.join(', ') + ' - ' + rows.length + ' rows. Download Excel from chat result.', ts: Date.now() });
+    persist(conv2);
+    renderConvList();
+  }
+
   function send(text) {
     var input = $('chat-input');
     var q = (text !== undefined ? text : input.value).trim();
     if (!q || busy) return;
+    if (chatBenchMode) { sendBenchmark(q); return; }
     input.value = '';
     autoResize();
     addMessage('user', q);
@@ -489,7 +624,7 @@
     });
     conv.messages.push({ role: 'user', text: q, ts: Date.now() });
     if (conv.title === 'New conversation') {
-      conv.title = q.length > 42 ? q.slice(0, 42) + '…' : q;
+      conv.title = q.length > 42 ? q.slice(0, 42) + '...' : q;
     }
     persist(conv);
     renderConvList();
@@ -508,14 +643,14 @@
         renderConvList();
       }).catch(function (err) {
         removeTyping();
-        addMessage('agent', 'Agent error: ' + err.message + '\n\nNo fallback is used — check the server and the LLM configuration.', { error: true });
+        addMessage('agent', 'Agent error: ' + err.message + '\n\nNo fallback is used - check the server and the LLM configuration.', { error: true });
       }).finally(function () {
         busy = false;
       });
       return;
     }
 
-    // snapshot mode — local intent engine over the bundled data
+    // snapshot mode - local intent engine over the bundled data
     setTimeout(function () {
       removeTyping();
       var a = answer(q);
@@ -558,15 +693,21 @@
             <div class="chat-thread" id="chat-thread">
               <div class="chat-empty" id="chat-empty">
                 <h2>Arzo</h2>
-                <p>Ask about stock, sales, or forecasts — or request a chart.</p>
+                <p>Ask about stock, sales, or forecasts - or request a chart.</p>
               </div>
             </div>
+          </div>
+          <div class="chat-bench-panel" id="chat-bench-panel" style="display:none">
+            <div class="chat-bench-title">Benchmark mode</div>
+            <div class="chat-bench-models" id="chat-bench-models"></div>
+            <div class="sub">Your typed question will run through the benchmark pipeline across the selected models.</div>
           </div>
           <div class="chat-composer">
             <div class="chat-hints" id="chat-hints">
               ${HINTS.map(h => `<button class="chat-hint" data-q="${esc(h)}">${esc(h)}</button>`).join('')}
             </div>
             <div class="chat-composer-inner">
+              <button class="chat-bench-toggle" id="chat-bench-toggle" title="Toggle benchmark mode">Bench</button>
               <textarea id="chat-input" rows="1" placeholder="Ask a question..."></textarea>
               <button class="chat-send" id="chat-send" title="Send">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -591,7 +732,7 @@
       clearThread(false);
       conv.messages.forEach(function (m) { addMessage(m.role, m.text, { tools: m.tools, charts: m.charts }); });
     } else if (window.APP_MODE !== 'live') {
-      addMessage('agent', 'Backend offline — running in snapshot mode.\nStart the API (uvicorn src.api.main:app) to chat with the real LangGraph agent over live data.');
+      addMessage('agent', 'Backend offline - running in snapshot mode.\nStart the API (uvicorn src.api.main:app) to chat with the real LangGraph agent over live data.');
     }
     renderConvList();
 
@@ -601,6 +742,9 @@
     });
     input.addEventListener('input', autoResize);
     newBtn.addEventListener('click', newChat);
+    var benchToggle = $('chat-bench-toggle');
+    if (benchToggle) benchToggle.addEventListener('click', toggleBenchMode);
+    loadBenchModels();
 
     document.querySelectorAll('.chat-hint').forEach(function (b) {
       b.addEventListener('click', function () { send(b.getAttribute('data-q')); });

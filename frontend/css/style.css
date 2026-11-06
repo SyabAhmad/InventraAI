@@ -537,8 +537,17 @@ tr:hover { background: var(--hover); }
 }
 .chat-bubble.error { border-color: #f5c6c2; background: #fdecea; }
 
-/* chat: inline charts rendered by the agent */
-.chat-chart { margin-top: 10px; }
+/* chat benchmark mode */
+.chat-bench-panel { border-top: 1px solid var(--border); background: var(--card2); padding: 10px 16px; }
+.chat-bench-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+.chat-bench-models { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.chat-bench-model { background: var(--card); border: 1px solid var(--border); border-radius: 2px; padding: 4px 8px; font-size: 12px; }
+.chat-bench-toggle { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: inherit; font-size: 12px; font-weight: 700; padding: 0 10px; border-radius: 2px; cursor: pointer; height: 44px; }
+.chat-bench-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chat-bench-cards { display: grid; gap: 8px; margin-top: 8px; }
+.chat-bench-card { background: var(--card2); border: 1px solid var(--border); border-radius: 2px; padding: 8px 10px; }
+.chat-bench-model-name { font-size: 12px; margin-bottom: 4px; }
+.chat-bench-chart-wrap { position: relative; height: 180px; margin-top: 8px; }
 .chat-chart-box { position: relative; height: 220px; min-width: 280px; }
 
 /* confirm dialog (reuses modal styles) */
