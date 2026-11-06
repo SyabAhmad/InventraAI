@@ -482,11 +482,10 @@
 
     const badge = $('model-badge');
     if (badge) {
-      badge.textContent = D.config.LLM_MODEL || 'no model';
+      badge.textContent = 'Arzo';
       badge.classList.add(window.APP_MODE === 'live' ? 'live' : 'snapshot');
-      badge.title = window.APP_MODE === 'live'
-        ? 'Live data — FastAPI backend connected'
-        : 'Static snapshot — start the backend for live data and the real agent';
+      badge.title = 'Assistant: Arzo · configured model: ' + (D.config.LLM_MODEL || 'no model') +
+        (window.APP_MODE === 'live' ? ' · live data' : ' · snapshot mode');
     }
     $('generated-at').textContent = (window.APP_MODE === 'live' ? 'Live · ' : 'Snapshot · ') + D.generated_at;
 

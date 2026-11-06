@@ -578,7 +578,8 @@
       var card = document.createElement('div');
       card.className = 'chat-bench-card';
       var ans = esc(r.answer_preview || r.error || '(no answer)');
-      card.innerHTML = '<div class="chat-bench-model-name"><code>' + esc(m) + '</code> <span class="sub">' + esc(r.status) + ' . ' + r.latency_ms + ' ms . ' + r.steps + ' steps</span></div><div class="md">' + ans.replace(/\n/g, '<br>') + '</div>';
+      var tools = (r.tools_called && r.tools_called.length) ? esc(r.tools_called.join(', ')) : 'none';
+      card.innerHTML = '<div class="chat-bench-model-name"><code>' + esc(m) + '</code> <span class="sub">' + esc(r.status) + ' . ' + r.latency_ms + ' ms . ' + r.steps + ' steps</span></div><div class="sub">tools: ' + tools + '</div><div class="md">' + ans.replace(/\n/g, '<br>') + '</div>';
       cards.appendChild(card);
     });
     bubble.appendChild(cards);
